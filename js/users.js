@@ -1,7 +1,7 @@
 import { db } from './config.js';
 import { 
     collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc,
-    orderBy, onSnapshot, serverTimestamp, limit 
+    orderBy, onSnapshot, serverTimestamp, limit, getDoc 
 } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
 class UsersManager {
@@ -35,19 +35,16 @@ class UsersManager {
                 totalUsers++;
                 
                 if (user.isPremium) premiumUsers++;
-                if (user.lastActive) {
-                    const lastActiveDate = user.lastActive instanceof Date ? user.lastActive : 
-                                         user.lastActive.toDate ? user.lastActive.toDate() :
-                                         new Date(user.lastActive);
-                    if ((now - lastActiveDate) < 7 * 24 * 60 * 60 * 1000) {
-                        activeReaders++;
-                    }
+                
+                // Consider user active if onboarding is completed
+                if (user.onboarding_step === 'onboarding_completed') {
+                    activeReaders++;
                 }
-                if (user.created_at) {
-                    const createdDate = user.created_at instanceof Date ? user.created_at :
-                                      user.created_at.toDate ? user.created_at.toDate() :
-                                      new Date(user.created_at);
-                    if (createdDate >= firstDayOfMonth) {
+
+                // Check for new users this month using date_of_birth field
+                if (user.date_of_birth) {
+                    const joinDate = new Date(user.date_of_birth);
+                    if (joinDate >= firstDayOfMonth) {
                         newThisMonth++;
                     }
                 }
@@ -66,32 +63,34 @@ class UsersManager {
         try {
             let q = query(this.usersRef);
 
+            // Apply filters
             if (this.filters.status) {
-                q = query(q, where('status', '==', this.filters.status));
+                const status = this.filters.status === 'active' ? 'onboarding_completed' : this.filters.status;
+                q = query(q, where('onboarding_step', '==', status));
             }
 
-            if (this.filters.membership) {
-                const isPremium = this.filters.membership === 'premium';
-                q = query(q, where('isPremium', '==', isPremium));
+            // Sort handling
+            switch(this.filters.sort) {
+                case 'name':
+                    q = query(q, orderBy('full_name'));
+                    break;
+                case 'joined':
+                    q = query(q, orderBy('date_of_birth', 'desc'));
+                    break;
+                default:
+                    q = query(q, orderBy('full_name'));
             }
-
-            q = query(q, orderBy(this.filters.sort));
 
             const snapshot = await getDocs(q);
             const usersGrid = document.getElementById('users-grid');
             const usersTableBody = document.getElementById('users-table-body');
             
             if (snapshot.empty) {
-                const emptyTemplate = document.getElementById('empty-state');
-                const emptyState = emptyTemplate.content.cloneNode(true);
-                usersGrid.innerHTML = '';
-                usersGrid.appendChild(emptyState);
-                usersTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
-                            No users found. Try adjusting your search or filter.
-                        </td>
-                    </tr>`;
+                usersGrid.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-8 text-gray-500">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p>No users found. Try adjusting your search or filter.</p>
+                    </div>`;
                 return;
             }
 
@@ -101,34 +100,32 @@ class UsersManager {
             for (const doc of snapshot.docs) {
                 const user = doc.data();
                 
+                // Apply search filter
                 if (this.filters.search) {
                     const searchTerm = this.filters.search.toLowerCase();
-                    const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
-                    const email = user.email.toLowerCase();
+                    const fullName = user.full_name?.toLowerCase() || '';
+                    const email = user.email?.toLowerCase() || '';
                     
                     if (!fullName.includes(searchTerm) && !email.includes(searchTerm)) {
                         continue;
                     }
                 }
 
+                // Get reading stats
                 const readingStats = await this.getUserReadingStats(doc.id);
+                
+                // Create and append user card
                 usersGrid.innerHTML += this.createUserCard(doc.id, user, readingStats);
-                usersTableBody.innerHTML += this.createUserListItem(doc.id, user, readingStats);
             }
+
         } catch (error) {
             console.error('Error loading users:', error);
             const errorMessage = `
-                <div class="col-span-full text-center py-8 text-red-500">
-                    <i class="fas fa-exclamation-circle text-xl mb-2"></i>
+                <div class="col-span-full flex flex-col items-center justify-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-circle text-4xl mb-2"></i>
                     <p>Error loading users. Please try again later.</p>
                 </div>`;
             document.getElementById('users-grid').innerHTML = errorMessage;
-            document.getElementById('users-table-body').innerHTML = `
-                <tr>
-                    <td colspan="6" class="px-4 py-8 text-center text-red-500">
-                        Error loading users. Please try again later.
-                    </td>
-                </tr>`;
         }
     }
 
@@ -163,41 +160,36 @@ class UsersManager {
         // Set user avatar and name
         const avatar = card.querySelector('.user-avatar');
         avatar.src = user.avatar || 'https://via.placeholder.com/100';
-        avatar.alt = `${user.firstname} ${user.lastname}`;
+        avatar.alt = user.full_name || '';
         
-        card.querySelector('.user-name').textContent = `${user.firstname} ${user.lastname}`;
-        card.querySelector('.user-email').textContent = user.email;
+        card.querySelector('.user-name').textContent = user.full_name || '';
+        card.querySelector('.user-email').textContent = user.email || '';
+        card.querySelector('.user-phone').textContent = user.phone_number || '';
 
-        // Set status
-        const statusColors = {
-            'active': 'bg-green-100 text-green-800',
-            'inactive': 'bg-gray-100 text-gray-800',
-            'blocked': 'bg-red-100 text-red-800'
-        };
+        // Set status and age
         const statusElement = card.querySelector('.user-status');
-        statusElement.textContent = user.status.charAt(0).toUpperCase() + user.status.slice(1);
-        statusElement.className = `user-status px-2 py-1 text-xs rounded-full ${statusColors[user.status] || 'bg-gray-100 text-gray-800'}`;
+        const status = user.onboarding_step === 'onboarding_completed' ? 'active' : 'pending';
+        statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        statusElement.className = `user-status px-2 py-1 text-xs rounded-full ${
+            status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+        }`;
 
-        // Set membership
-        const membershipElement = card.querySelector('.user-membership');
-        if (user.isPremium) {
-            membershipElement.textContent = 'Premium';
-            membershipElement.className = 'user-membership px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full';
-        } else {
-            membershipElement.textContent = 'Free';
-            membershipElement.className = 'user-membership px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full';
-        }
+        // Set age range
+        card.querySelector('.user-age').textContent = user.age_range || 'N/A';
 
-        // Set reading stats
-        card.querySelector('.user-total-books').textContent = stats.totalBooks;
-        card.querySelector('.user-completed-books').textContent = stats.completedBooks;
-        card.querySelector('.user-in-progress').textContent = stats.inProgress;
+        // Set country and onboarding
+        card.querySelector('.user-country').textContent = user.country || 'N/A';
+        card.querySelector('.user-onboarding').textContent = 
+            user.onboarding_step?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Not Started';
+
+        // Set preferred genres
+        const genres = user.preferred_genres || [];
+        card.querySelector('.user-genres').textContent = 
+            genres.length > 0 ? `${genres.length} genres` : 'None';
 
         // Set join date
-        const joinDate = user.created_at ? 
-            (user.created_at instanceof Date ? user.created_at : 
-             user.created_at.toDate ? user.created_at.toDate() : 
-             new Date(user.created_at)).toLocaleDateString() : 'N/A';
+        const joinDate = user.date_of_birth ? 
+            new Date(user.date_of_birth).toLocaleDateString() : 'N/A';
         card.querySelector('.user-joined').textContent = `Joined: ${joinDate}`;
 
         // Set up action buttons
@@ -284,7 +276,7 @@ class UsersManager {
 
     async editUser(userId) {
         try {
-            const userDoc = await getDocs(doc(db, 'users', userId));
+            const userDoc = await getDoc(doc(this.usersRef, userId));
             if (!userDoc.exists()) {
                 throw new Error('User not found');
             }
@@ -295,13 +287,13 @@ class UsersManager {
             form.dataset.userId = userId;
             
             document.getElementById('modal-title').textContent = 'Edit User';
-            document.getElementById('user-firstname').value = user.firstname;
-            document.getElementById('user-lastname').value = user.lastname;
-            document.getElementById('user-email').value = user.email;
-            document.getElementById('user-phone').value = user.phone || '';
-            document.getElementById('user-status').value = user.status;
-            document.getElementById('user-premium').checked = user.isPremium;
-            document.getElementById('user-verified').checked = user.isVerified;
+            document.getElementById('user-firstname').value = user.firstname || user.full_name || '';
+            document.getElementById('user-lastname').value = user.lastname || '';
+            document.getElementById('user-email').value = user.email || '';
+            document.getElementById('user-phone').value = user.phone_number || user.phone || '';
+            document.getElementById('user-status').value = user.status || 'active';
+            document.getElementById('user-premium').checked = user.isPremium || false;
+            document.getElementById('user-verified').checked = user.isVerified || false;
             document.getElementById('avatar-preview').src = user.avatar || 'https://via.placeholder.com/100';
             
             modal.classList.remove('hidden');

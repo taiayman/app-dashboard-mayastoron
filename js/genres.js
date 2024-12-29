@@ -1,4 +1,8 @@
 import { db } from './config.js';
+import { 
+    collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc,
+    orderBy, onSnapshot, serverTimestamp, limit 
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
 class GenresManager {
     constructor() {
@@ -7,6 +11,7 @@ class GenresManager {
         this.setupEventListeners();
         this.setupRealtimeListener();
         this.loadStats();
+        this.setupUploadcare();
     }
 
     async loadStats() {
@@ -84,24 +89,36 @@ class GenresManager {
         return `
             <div class="bg-white rounded-xl shadow-sm overflow-hidden group hover:shadow-lg transition-shadow duration-300" 
                  data-genre-id="${genreId}">
-                <div class="p-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-xl">
-                                ${this.getGenreIcon(genre.icon)}
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-800">${genre.name}</h3>
-                                <p class="text-sm text-gray-500">${genre.books || 0} books</p>
-                            </div>
-                        </div>
-                        ${genre.featured ? `
-                            <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
-                                Featured
-                            </span>
-                        ` : ''}
+                <div class="relative h-32">
+                    <img src="${genre.imageUrl || 'https://via.placeholder.com/300x200?text=No+Image'}" 
+                         alt="${genre.name}"
+                         class="w-full h-full object-cover"
+                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+Loading+Image'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    ${genre.featured ? `
+                        <span class="absolute top-2 right-2 px-2 py-1 bg-yellow-400 text-xs font-bold rounded-full">
+                            Featured
+                        </span>
+                    ` : ''}
+                    <div class="absolute bottom-0 left-0 right-0 p-3">
+                        <h3 class="font-semibold text-lg text-white">${genre.name}</h3>
                     </div>
-                    <p class="text-sm text-gray-600 mb-4 line-clamp-2">${genre.description}</p>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-xl">
+                            ${this.getGenreIcon(genre.icon)}
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-500">
+                                <i class="fas fa-book mr-1"></i>
+                                ${genre.bookCount || 0} books
+                            </p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4 line-clamp-2">
+                        ${genre.description || 'No description available'}
+                    </p>
                     <div class="flex justify-end space-x-2 pt-3 border-t">
                         <button onclick="genresManager.editGenre('${genreId}')"
                                 class="p-2 text-orange-500 hover:text-orange-700 transition-colors">
@@ -140,7 +157,8 @@ class GenresManager {
                 description: formData.get('description'),
                 icon: formData.get('icon'),
                 featured: formData.get('featured') === 'on',
-                books: 0,
+                bookCount: 0,
+                imageUrl: formData.get('imageUrl'),
                 created_at: serverTimestamp()
             };
 
@@ -171,6 +189,21 @@ class GenresManager {
             document.getElementById('genre-description').value = genre.description;
             document.getElementById('genre-icon').value = genre.icon;
             document.getElementById('genre-featured').checked = genre.featured;
+            
+            // Handle image preview if exists
+            if (genre.imageUrl) {
+                const preview = document.getElementById('image-preview');
+                const filename = document.getElementById('image-filename');
+                const previewImg = preview.querySelector('img');
+                
+                preview.classList.remove('hidden');
+                filename.textContent = 'Current image';
+                previewImg.src = genre.imageUrl;
+                
+                // Update Uploadcare widget with existing image
+                const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+                widget.value(genre.imageUrl);
+            }
             
             modal.classList.remove('hidden');
         } catch (error) {
@@ -252,6 +285,13 @@ class GenresManager {
         form.reset();
         delete form.dataset.genreId;
         document.getElementById('modal-title').textContent = 'Add New Genre';
+        
+        // Reset image preview
+        document.getElementById('image-preview').classList.add('hidden');
+        document.getElementById('image-filename').textContent = '';
+        const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+        widget.value(null);
+        
         modal.classList.add('hidden');
     }
 
@@ -297,6 +337,39 @@ class GenresManager {
             } else {
                 await this.addGenre(formData);
             }
+        });
+    }
+
+    setupUploadcare() {
+        // Initialize widget
+        const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+        
+        // Handle successful uploads
+        widget.onChange(function(file) {
+            if (file) {
+                file.done(function(fileInfo) {
+                    const imageUrl = fileInfo.cdnUrl;
+                    const preview = document.getElementById('image-preview');
+                    const filename = document.getElementById('image-filename');
+                    const previewImg = preview.querySelector('img');
+                    
+                    // Update UI
+                    preview.classList.remove('hidden');
+                    filename.textContent = fileInfo.name || 'Uploaded image';
+                    previewImg.src = imageUrl;
+                    
+                    // Store the URL
+                    document.querySelector('input[name="imageUrl"]').value = imageUrl;
+                });
+            }
+        });
+        
+        // Handle removal
+        document.getElementById('remove-image').addEventListener('click', () => {
+            widget.value(null);
+            document.getElementById('image-preview').classList.add('hidden');
+            document.getElementById('image-filename').textContent = '';
+            document.querySelector('input[name="imageUrl"]').value = '';
         });
     }
 }

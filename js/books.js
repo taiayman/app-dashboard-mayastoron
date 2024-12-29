@@ -19,6 +19,7 @@ class BooksManager {
         this.loadGenres();
         this.setupEventListeners();
         this.setupRealtimeListener();
+        this.setupUploadcare();
     }
 
     async loadGenres() {
@@ -367,7 +368,19 @@ class BooksManager {
             document.getElementById('book-premium').checked = book.isPremium;
             document.getElementById('book-featured').checked = book.featured;
             document.getElementById('book-image-url').value = book.imageUrl || '';
-            document.getElementById('book-pdf-url').value = book.pdfUrl || '';
+            
+            // Update PDF preview if exists
+            if (book.pdfUrl) {
+                const preview = document.getElementById('pdf-preview');
+                const filename = document.getElementById('pdf-filename');
+                
+                preview.classList.remove('hidden');
+                filename.textContent = 'Current PDF file';
+                
+                // Update Uploadcare widget with existing PDF
+                const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+                widget.value(book.pdfUrl);
+            }
 
             // Update selected genres
             this.selectedGenres = new Set(book.genres);
@@ -479,6 +492,13 @@ class BooksManager {
         const stars = document.querySelectorAll('#book-rating + div i');
         stars.forEach(star => star.className = 'far fa-star');
         
+        // Reset PDF upload
+        document.getElementById('pdf-preview').classList.add('hidden');
+        document.getElementById('pdf-filename').textContent = '';
+        
+        const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+        widget.value(null);
+        
         modal.classList.add('hidden');
     }
 
@@ -577,6 +597,44 @@ class BooksManager {
         } catch (_) {
             return false;
         }
+    }
+
+    setupUploadcare() {
+        // Initialize widget
+        const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+        
+        // Configure widget settings
+        widget.validators.push(function(fileInfo) {
+            if (fileInfo.name && !fileInfo.name.toLowerCase().endsWith('.pdf')) {
+                throw new Error('Please upload PDF files only');
+            }
+        });
+        
+        // Handle successful uploads
+        widget.onChange(function(file) {
+            if (file) {
+                file.done(function(fileInfo) {
+                    const pdfUrl = fileInfo.cdnUrl;
+                    const preview = document.getElementById('pdf-preview');
+                    const filename = document.getElementById('pdf-filename');
+                    
+                    // Update UI
+                    preview.classList.remove('hidden');
+                    filename.textContent = fileInfo.name || 'Uploaded PDF';
+                    
+                    // Store the URL
+                    document.querySelector('input[name="pdfUrl"]').value = pdfUrl;
+                });
+            }
+        });
+        
+        // Handle removal
+        document.getElementById('remove-pdf').addEventListener('click', () => {
+            widget.value(null);
+            document.getElementById('pdf-preview').classList.add('hidden');
+            document.getElementById('pdf-filename').textContent = '';
+            document.querySelector('input[name="pdfUrl"]').value = '';
+        });
     }
 }
 
