@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Books Management - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+        window.firebase = { 
+            firestore: { collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc }
+        };
+    </script>
+    
+    <!-- Application Scripts -->
+    <script src="js/config.js" type="module"></script>
+    <script src="js/books.js" type="module"></script>
+</head>
+<body class="bg-orange-50">
+    <!-- Mobile Menu Button -->
+    <div class="lg:hidden fixed top-4 left-4 z-50">
+        <button id="mobile-menu-button" class="text-orange-600 hover:text-orange-700 focus:outline-none">
+            <i class="fas fa-bars text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Menu Close Button -->
+    <div class="lg:hidden fixed top-4 right-4 z-50 hidden" id="mobile-close-button">
+        <button class="text-white hover:text-orange-200 focus:outline-none">
+            <i class="fas fa-times text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Overlay for mobile menu -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black opacity-50 z-30 hidden lg:hidden"></div>
+
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-orange-600 to-orange-700 shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="p-4 border-b border-orange-500/30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                            <i class="fas fa-book-open text-orange-600 text-xl"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-white">Academic Library</h1>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <a href="index.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-chart-line w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Dashboard
+                    </a>
+                    <a href="users.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-users w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Users
+                    </a>
+                    <a href="books.html" class="flex items-center px-4 py-3 text-white bg-orange-500/20 rounded-lg">
+                        <i class="fas fa-book w-5 h-5 mr-3"></i>
+                        Books
+                    </a>
+                    <a href="genres.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-tags w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Academic Genres
+                    </a>
+                    <a href="reading-states.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-bookmark w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Reading States
+                    </a>
+                </nav>
+
+                <!-- User Profile -->
+                <div class="p-4 border-t border-orange-500/30">
+                    <div class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-orange-500/20">
+                        <img src="https://via.placeholder.com/40" alt="Admin" class="w-10 h-10 rounded-full border-2 border-white/10">
+                        <div>
+                            <p class="font-medium text-white">Admin User</p>
+                            <p class="text-sm text-white/70">admin@library.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-8 w-full lg:w-auto">
+            <!-- Top Bar -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <h2 class="text-xl lg:text-2xl font-bold text-gray-800">Books Management</h2>
+                <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <button id="add-book-btn" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center">
+                        <i class="fas fa-plus mr-2"></i>
+                        Add New Book
+                    </button>
+                    <div class="relative flex-1 sm:flex-none">
+                        <input type="text" id="search-input" placeholder="Search books..." 
+                               class="w-full px-4 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Genre</label>
+                        <select id="genre-filter" 
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="">All Genres</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select id="type-filter"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="">All Types</option>
+                            <option value="premium">Premium</option>
+                            <option value="free">Free</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                        <select id="sort-select"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="title">Title</option>
+                            <option value="author">Author</option>
+                            <option value="rating">Rating</option>
+                            <option value="releaseDate">Release Date</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">View</label>
+                        <div class="flex gap-2">
+                            <button id="grid-view" class="flex-1 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                                <i class="fas fa-grid-2 mr-2"></i>Grid
+                            </button>
+                            <button id="list-view" class="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                                <i class="fas fa-list mr-2"></i>List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Books Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6" id="books-grid">
+                <!-- Book cards will be inserted here -->
+            </div>
+
+            <!-- Books List (Hidden by default) -->
+            <div class="hidden" id="books-list">
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Author</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="books-table-body">
+                                <!-- Table rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Book Modal -->
+    <div id="book-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-4 lg:p-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg lg:text-2xl font-bold text-white" id="modal-title">Add New Book</h3>
+                    <button id="close-modal" class="text-white hover:text-orange-100 transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 lg:p-6 overflow-y-auto" style="max-height: calc(90vh - 80px);">
+                <form id="book-form" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left Column - Basic Info -->
+                        <div class="space-y-4">
+                            <h4 class="font-semibold text-gray-800 text-lg border-b pb-2">Basic Information</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                <input type="text" id="book-title" name="title" required
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Author</label>
+                                <input type="text" id="book-author" name="author" required
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                <textarea id="book-description" name="description" rows="4" required
+                                          class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 resize-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
+                                <input type="text" id="book-publisher" name="publisher" required
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            </div>
+                        </div>
+
+                        <!-- Middle Column - Details -->
+                        <div class="space-y-4">
+                            <h4 class="font-semibold text-gray-800 text-lg border-b pb-2">Book Details</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Release Date</label>
+                                <input type="date" id="book-release-date" name="releaseDate" required
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Page Count</label>
+                                <input type="number" id="book-page-count" name="pageCount" required min="1"
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="book-rating" name="rating" required min="0" max="5" step="0.1"
+                                           class="w-24 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                                    <div class="text-yellow-400 text-xl">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Genres</label>
+                                <div class="relative">
+                                    <select id="book-genres" name="genres" multiple required
+                                            class="hidden">
+                                    </select>
+                                    <div class="w-full px-4 py-2 border rounded-lg focus-within:ring-2 focus-within:ring-orange-500 bg-gray-50">
+                                        <div id="selected-genres" class="flex flex-wrap gap-2 min-h-[42px]">
+                                            <!-- Selected genres will appear here as tags -->
+                                        </div>
+                                        <input type="text" id="genre-search" 
+                                               placeholder="Search and select genres..."
+                                               class="w-full mt-2 bg-transparent border-none p-0 focus:ring-0 text-sm">
+                                    </div>
+                                    <div id="genre-dropdown" class="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg hidden">
+                                        <div id="genre-options" class="max-h-48 overflow-y-auto p-1">
+                                            <!-- Genre options will appear here -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">Click to select multiple genres</p>
+                            </div>
+                            <div class="flex items-center space-x-6 pt-4">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="book-premium" name="isPremium" 
+                                           class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500">
+                                    <span class="text-sm text-gray-700">Premium Book</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="book-featured" name="featured"
+                                           class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500">
+                                    <span class="text-sm text-gray-700">Featured</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Media -->
+                        <div class="space-y-4">
+                            <h4 class="font-semibold text-gray-800 text-lg border-b pb-2">Media Files</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
+                                <input type="url" id="book-image-url" name="imageUrl" required
+                                       placeholder="https://example.com/book-cover.jpg"
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                                <p class="mt-1 text-xs text-gray-500">Enter a valid image URL (jpg, png, etc.)</p>
+                                <div class="mt-2">
+                                    <img id="image-preview" src="" alt="" class="hidden mx-auto max-h-48 rounded-lg">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">PDF URL</label>
+                                <input type="url" id="book-pdf-url" name="pdfUrl" required
+                                       placeholder="https://example.com/book.pdf"
+                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                                <p class="mt-1 text-xs text-gray-500">Enter a valid PDF URL</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end space-x-3 pt-6 border-t">
+                        <button type="button" id="cancel-modal" 
+                                class="px-6 py-2.5 border rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                            Save Book
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileCloseButton = document.getElementById('mobile-close-button');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+            mobileCloseButton.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+            mobileCloseButton.classList.add('hidden');
+        }
+
+        mobileMenuButton.addEventListener('click', openSidebar);
+        mobileCloseButton.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && 
+                !mobileMenuButton.contains(e.target) && 
+                !mobileCloseButton.contains(e.target)) {
+                closeSidebar();
+            }
+        });
+
+        // View toggle functionality
+        document.getElementById('grid-view').addEventListener('click', function() {
+            this.classList.remove('bg-gray-100', 'text-gray-700');
+            this.classList.add('bg-orange-500', 'text-white');
+            document.getElementById('list-view').classList.remove('bg-orange-500', 'text-white');
+            document.getElementById('list-view').classList.add('bg-gray-100', 'text-gray-700');
+            document.getElementById('books-grid').classList.remove('hidden');
+            document.getElementById('books-list').classList.add('hidden');
+        });
+
+        document.getElementById('list-view').addEventListener('click', function() {
+            this.classList.remove('bg-gray-100', 'text-gray-700');
+            this.classList.add('bg-orange-500', 'text-white');
+            document.getElementById('grid-view').classList.remove('bg-orange-500', 'text-white');
+            document.getElementById('grid-view').classList.add('bg-gray-100', 'text-gray-700');
+            document.getElementById('books-list').classList.remove('hidden');
+            document.getElementById('books-grid').classList.add('hidden');
+        });
+    </script>
+</body>
+</html> 

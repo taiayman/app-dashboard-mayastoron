@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading States - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, orderBy } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+        window.firebase = { 
+            firestore: { collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, orderBy }
+        };
+    </script>
+    
+    <!-- Application Scripts -->
+    <script src="js/config.js" type="module"></script>
+    <script src="js/reading-states.js" type="module"></script>
+</head>
+<body class="bg-orange-50">
+    <!-- Mobile Menu Button -->
+    <div class="lg:hidden fixed top-4 left-4 z-50">
+        <button id="mobile-menu-button" class="text-orange-600 hover:text-orange-700 focus:outline-none">
+            <i class="fas fa-bars text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Menu Close Button -->
+    <div class="lg:hidden fixed top-4 right-4 z-50 hidden" id="mobile-close-button">
+        <button class="text-white hover:text-orange-200 focus:outline-none">
+            <i class="fas fa-times text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Overlay for mobile menu -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black opacity-50 z-30 hidden lg:hidden"></div>
+
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-orange-600 to-orange-700 shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="p-4 border-b border-orange-500/30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                            <i class="fas fa-book-open text-orange-600 text-xl"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-white">Academic Library</h1>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <a href="index.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-chart-line w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Dashboard
+                    </a>
+                    <a href="users.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-users w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Users
+                    </a>
+                    <a href="books.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-book w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Books
+                    </a>
+                    <a href="genres.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-tags w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Academic Genres
+                    </a>
+                    <a href="reading-states.html" class="flex items-center px-4 py-3 text-white bg-orange-500/20 rounded-lg">
+                        <i class="fas fa-bookmark w-5 h-5 mr-3"></i>
+                        Reading States
+                    </a>
+                </nav>
+
+                <!-- User Profile -->
+                <div class="p-4 border-t border-orange-500/30">
+                    <div class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-orange-500/20">
+                        <img src="https://via.placeholder.com/40" alt="Admin" class="w-10 h-10 rounded-full border-2 border-white/10">
+                        <div>
+                            <p class="font-medium text-white">Admin User</p>
+                            <p class="text-sm text-white/70">admin@library.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-8 w-full lg:w-auto">
+            <!-- Top Bar -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <h2 class="text-xl lg:text-2xl font-bold text-gray-800">Reading States</h2>
+                <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <div class="relative flex-1 sm:flex-none">
+                        <input type="text" id="search-input" placeholder="Search by user or book..." 
+                               class="w-full px-4 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Total Reading States</p>
+                            <h3 class="text-2xl font-bold text-gray-800" id="total-states">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500">
+                            <i class="fas fa-bookmark text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Currently Reading</p>
+                            <h3 class="text-2xl font-bold text-gray-800" id="reading-count">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500">
+                            <i class="fas fa-book-reader text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Completed</p>
+                            <h3 class="text-2xl font-bold text-gray-800" id="completed-count">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-500">
+                            <i class="fas fa-check-circle text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Average Progress</p>
+                            <h3 class="text-2xl font-bold text-gray-800" id="avg-progress">0%</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-500">
+                            <i class="fas fa-chart-line text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="status-filter" 
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="">All Statuses</option>
+                            <option value="reading">Currently Reading</option>
+                            <option value="completed">Completed</option>
+                            <option value="on-hold">On Hold</option>
+                            <option value="dropped">Dropped</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                        <select id="sort-select"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="updated_at">Last Updated</option>
+                            <option value="progress">Progress</option>
+                            <option value="user">User Name</option>
+                            <option value="book">Book Title</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Progress</label>
+                        <select id="progress-filter"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="">All Progress</option>
+                            <option value="0-25">0-25%</option>
+                            <option value="26-50">26-50%</option>
+                            <option value="51-75">51-75%</option>
+                            <option value="76-100">76-100%</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">View</label>
+                        <div class="flex gap-2">
+                            <button id="grid-view" class="flex-1 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                                <i class="fas fa-grid-2 mr-2"></i>Grid
+                            </button>
+                            <button id="list-view" class="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                                <i class="fas fa-list mr-2"></i>List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reading States Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6" id="states-grid">
+                <!-- Reading state cards will be inserted here -->
+            </div>
+
+            <!-- Reading States List (Hidden by default) -->
+            <div class="hidden" id="states-list">
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Updated</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="states-table-body">
+                                <!-- Table rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Reading State Modal -->
+    <div id="state-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-lg">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-4 rounded-t-xl">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg lg:text-xl font-bold text-white" id="modal-title">Edit Reading State</h3>
+                    <button id="close-modal" class="text-white hover:text-orange-100 transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 lg:p-6">
+                <form id="state-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="state-status" name="status" required
+                                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="reading">Currently Reading</option>
+                            <option value="completed">Completed</option>
+                            <option value="on-hold">On Hold</option>
+                            <option value="dropped">Dropped</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Progress</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="state-progress" name="progress" required
+                                   min="0" max="100" step="1"
+                                   class="w-24 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <span class="text-gray-500">%</span>
+                            <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="progress-bar" class="h-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea id="state-notes" name="notes" rows="4"
+                                  class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 resize-none"
+                                  placeholder="Add any notes about the reading state..."></textarea>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" id="cancel-modal" 
+                                class="px-6 py-2.5 border rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileCloseButton = document.getElementById('mobile-close-button');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+            mobileCloseButton.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+            mobileCloseButton.classList.add('hidden');
+        }
+
+        mobileMenuButton.addEventListener('click', openSidebar);
+        mobileCloseButton.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && 
+                !mobileMenuButton.contains(e.target) && 
+                !mobileCloseButton.contains(e.target)) {
+                closeSidebar();
+            }
+        });
+
+        // View toggle functionality
+        document.getElementById('grid-view').addEventListener('click', function() {
+            this.classList.remove('bg-gray-100', 'text-gray-700');
+            this.classList.add('bg-orange-500', 'text-white');
+            document.getElementById('list-view').classList.remove('bg-orange-500', 'text-white');
+            document.getElementById('list-view').classList.add('bg-gray-100', 'text-gray-700');
+            document.getElementById('states-grid').classList.remove('hidden');
+            document.getElementById('states-list').classList.add('hidden');
+        });
+
+        document.getElementById('list-view').addEventListener('click', function() {
+            this.classList.remove('bg-gray-100', 'text-gray-700');
+            this.classList.add('bg-orange-500', 'text-white');
+            document.getElementById('grid-view').classList.remove('bg-orange-500', 'text-white');
+            document.getElementById('grid-view').classList.add('bg-gray-100', 'text-gray-700');
+            document.getElementById('states-list').classList.remove('hidden');
+            document.getElementById('states-grid').classList.add('hidden');
+        });
+
+        // Progress input functionality
+        document.getElementById('state-progress').addEventListener('input', function() {
+            const progress = Math.min(Math.max(0, this.value), 100);
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+        });
+    </script>
+</body>
+</html> 

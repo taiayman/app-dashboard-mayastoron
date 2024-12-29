@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Genres - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, orderBy } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+        window.firebase = { 
+            firestore: { collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, orderBy }
+        };
+    </script>
+    
+    <!-- Application Scripts -->
+    <script src="js/config.js" type="module"></script>
+    <script src="js/genres.js" type="module"></script>
+</head>
+<body class="bg-orange-50">
+    <!-- Mobile Menu Button -->
+    <div class="lg:hidden fixed top-4 left-4 z-50">
+        <button id="mobile-menu-button" class="text-orange-600 hover:text-orange-700 focus:outline-none">
+            <i class="fas fa-bars text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Menu Close Button -->
+    <div class="lg:hidden fixed top-4 right-4 z-50 hidden" id="mobile-close-button">
+        <button class="text-white hover:text-orange-200 focus:outline-none">
+            <i class="fas fa-times text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Overlay for mobile menu -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black opacity-50 z-30 hidden lg:hidden"></div>
+
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-orange-600 to-orange-700 shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="p-4 border-b border-orange-500/30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                            <i class="fas fa-book-open text-orange-600 text-xl"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-white">Academic Library</h1>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <a href="index.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-chart-line w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Dashboard
+                    </a>
+                    <a href="users.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-users w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Users
+                    </a>
+                    <a href="books.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-book w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Books
+                    </a>
+                    <a href="genres.html" class="flex items-center px-4 py-3 text-white bg-orange-500/20 rounded-lg">
+                        <i class="fas fa-tags w-5 h-5 mr-3"></i>
+                        Academic Genres
+                    </a>
+                    <a href="reading-states.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-bookmark w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Reading States
+                    </a>
+                </nav>
+
+                <!-- User Profile -->
+                <div class="p-4 border-t border-orange-500/30">
+                    <div class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-orange-500/20">
+                        <img src="https://via.placeholder.com/40" alt="Admin" class="w-10 h-10 rounded-full border-2 border-white/10">
+                        <div>
+                            <p class="font-medium text-white">Admin User</p>
+                            <p class="text-sm text-white/70">admin@library.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-8 w-full lg:w-auto">
+            <!-- Top Bar -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <h2 class="text-xl lg:text-2xl font-bold text-gray-800">Academic Genres</h2>
+                <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <button id="add-genre-btn" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center">
+                        <i class="fas fa-plus mr-2"></i>
+                        Add New Genre
+                    </button>
+                    <div class="relative flex-1 sm:flex-none">
+                        <input type="text" id="search-input" placeholder="Search genres..." 
+                               class="w-full px-4 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Total Genres</p>
+                            <h3 class="text-2xl font-bold text-gray-800" id="total-genres">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500">
+                            <i class="fas fa-tags text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Most Used Genre</p>
+                            <h3 class="text-lg font-bold text-gray-800" id="most-used-genre">-</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500">
+                            <i class="fas fa-star text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Books Tagged</p>
+                            <h3 class="text-2xl font-bold text-gray-800" id="books-tagged">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-500">
+                            <i class="fas fa-book text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Last Added</p>
+                            <h3 class="text-lg font-bold text-gray-800" id="last-added">-</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-500">
+                            <i class="fas fa-clock text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Genres Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6" id="genres-grid">
+                <!-- Genre cards will be inserted here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Genre Modal -->
+    <div id="genre-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-lg">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-4 rounded-t-xl">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg lg:text-xl font-bold text-white" id="modal-title">Add New Genre</h3>
+                    <button id="close-modal" class="text-white hover:text-orange-100 transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 lg:p-6">
+                <form id="genre-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Genre Name</label>
+                        <input type="text" id="genre-name" name="name" required
+                               class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                               placeholder="Enter genre name...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="genre-description" name="description" rows="4" required
+                                  class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 resize-none"
+                                  placeholder="Enter genre description..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                        <select id="genre-icon" name="icon" required
+                                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                            <option value="">Select an icon</option>
+                            <option value="book">📚 Book</option>
+                            <option value="science">🔬 Science</option>
+                            <option value="math">📐 Mathematics</option>
+                            <option value="history">🏛️ History</option>
+                            <option value="language">📝 Language</option>
+                            <option value="art">🎨 Art</option>
+                            <option value="music">🎵 Music</option>
+                            <option value="technology">💻 Technology</option>
+                            <option value="business">💼 Business</option>
+                            <option value="health">⚕️ Health</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="genre-featured" name="featured"
+                               class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500">
+                        <label class="text-sm text-gray-700">Featured Genre</label>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" id="cancel-modal" 
+                                class="px-6 py-2.5 border rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                            Save Genre
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileCloseButton = document.getElementById('mobile-close-button');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+            mobileCloseButton.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+            mobileCloseButton.classList.add('hidden');
+        }
+
+        mobileMenuButton.addEventListener('click', openSidebar);
+        mobileCloseButton.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && 
+                !mobileMenuButton.contains(e.target) && 
+                !mobileCloseButton.contains(e.target)) {
+                closeSidebar();
+            }
+        });
+    </script>
+</body>
+</html> 
