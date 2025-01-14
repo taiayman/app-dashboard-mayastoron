@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Changelog - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-orange-50">
+    <!-- Mobile Menu Button -->
+    <div class="lg:hidden fixed top-4 left-4 z-50">
+        <button id="mobile-menu-button" class="text-orange-600 hover:text-orange-700 focus:outline-none">
+            <i class="fas fa-bars text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Menu Close Button -->
+    <div class="lg:hidden fixed top-4 right-4 z-50 hidden" id="mobile-close-button">
+        <button class="text-white hover:text-orange-200 focus:outline-none">
+            <i class="fas fa-times text-2xl"></i>
+        </button>
+    </div>
+
+    <!-- Overlay for mobile menu -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black opacity-50 z-30 hidden lg:hidden"></div>
+
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-orange-600 to-orange-700 shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="p-4 border-b border-orange-500/30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                            <i class="fas fa-book-open text-orange-600 text-xl"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-white">Academic Library</h1>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <a href="index.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-chart-line w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Dashboard
+                    </a>
+                    <a href="users.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-users w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Users
+                    </a>
+                    <a href="books.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-book w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Books
+                    </a>
+                    <a href="genres.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-tags w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Academic Genres
+                    </a>
+                    <a href="reading-states.html" class="flex items-center px-4 py-3 text-white/70 hover:text-white hover:bg-orange-500/20 rounded-lg transition-colors group">
+                        <i class="fas fa-book-reader w-5 h-5 mr-3 text-white/70 group-hover:text-white"></i>
+                        Reading States
+                    </a>
+                    <a href="changelog.html" class="flex items-center px-4 py-3 text-white bg-orange-500/20 rounded-lg">
+                        <i class="fas fa-history w-5 h-5 mr-3"></i>
+                        Changelog
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 lg:ml-64 p-4 lg:p-8">
+            <!-- Top Bar -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <h2 class="text-xl lg:text-2xl font-bold text-gray-800">Changelog</h2>
+            </div>
+
+            <!-- Version Timeline -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="space-y-8">
+                    <!-- Version 1.0.0 -->
+                    <div class="relative">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center">
+                                <div class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">v1.0.0</div>
+                                <span class="ml-3 text-sm text-gray-500">eBook App Changelog</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 space-y-6">
+                            <!-- Authentication & User Management -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Authentication & User Management</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ Firebase Authentication integration</p>
+                                    <p class="text-gray-700">✅ User sign-up and sign-in flows</p>
+                                    <p class="text-gray-700">✅ Google Sign-In capability</p>
+                                    <p class="text-gray-700">⏳ Password reset functionality</p>
+                                    <p class="text-gray-700">✅ Profile creation and editing features</p>
+                                    <p class="text-gray-700">✅ Onboarding flow with gender and age selection</p>
+                                </div>
+                            </div>
+
+                            <!-- Book Management -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Book Management</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ Book model with comprehensive metadata support</p>
+                                    <p class="text-gray-700">✅ Support for both premium and free books</p>
+                                    <p class="text-gray-700">✅ Book download service for offline reading</p>
+                                    <p class="text-gray-700">⏳ Reading progress tracking (In Progress)</p>
+                                </div>
+                            </div>
+
+                            <!-- Reading Experience -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Reading Experience</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ PDF viewer for book reading</p>
+                                    <p class="text-gray-700">⏳ Text-to-Speech functionality using ElevenLabs API</p>
+                                    <p class="text-gray-700">⏳ Reading settings (font size, theme, etc.) (In Progress)</p>
+                                    <p class="text-gray-700">✅ Note-taking capability while reading</p>
+                                    <p class="text-gray-700">✅ Bookmarking system</p>
+                                </div>
+                            </div>
+
+                            <!-- Library & Discovery -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Library & Discovery</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ Home screen with recommended books</p>
+                                    <p class="text-gray-700">✅ Genre-based book browsing</p>
+                                    <p class="text-gray-700">⏳ Search functionality</p>
+                                    <p class="text-gray-700">✅ Wishlist system</p>
+                                </div>
+                            </div>
+
+                            <!-- UI/UX Features -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">UI/UX Features</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ Responsive design supporting both mobile and desktop layouts</p>
+                                    <p class="text-gray-700">✅ Custom bottom navigation bar</p>
+                                    <p class="text-gray-700">⏳ Dark mode support</p>
+                                    <p class="text-gray-700">✅ Loading animations and transitions</p>
+                                    <p class="text-gray-700">✅ Custom UI components for consistency</p>
+                                </div>
+                            </div>
+
+                            <!-- Technical Infrastructure -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Technical Infrastructure</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ Firebase services integration</p>
+                                    <p class="text-gray-700">✅ Cloud Firestore for data storage</p>
+                                    <p class="text-gray-700">✅ Firebase Storage for book files</p>
+                                    <p class="text-gray-700">✅ Custom state management</p>
+                                    <p class="text-gray-700">❌ Caching system for downloaded books (In Progress)</p>
+                                </div>
+                            </div>
+
+                            <!-- Profile & Preferences -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Profile & Preferences</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">❌ User profile management</p>
+                                    <p class="text-gray-700">⏳ Reading preferences storage (In Progress)</p>
+                                    <p class="text-gray-700">✅ Genre preferences selection</p>
+                                    <p class="text-gray-700">⏳ Progress tracking (In Progress)</p>
+                                    <p class="text-gray-700">✅ Notification system</p>
+                                </div>
+                            </div>
+
+                            <!-- Content Organization -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Content Organization</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">✅ Genre-based categorization</p>
+                                    <p class="text-gray-700">❌ Reading lists</p>
+                                    <p class="text-gray-700">✅ Bookmarks management</p>
+                                    <p class="text-gray-700">✅ Notes organization</p>
+                                    <p class="text-gray-700">⏳ Progress tracking across devices (In Progress)</p>
+                                </div>
+                            </div>
+
+                            <!-- Security Features -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Security Features</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">❌ Secure authentication</p>
+                                    <p class="text-gray-700">✅ Protected premium content</p>
+                                    <p class="text-gray-700">❌ File access control</p>
+                                    <p class="text-gray-700">❌ User data encryption (In Progress)</p>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Features -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Advanced Features (❌ Not Started)</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">❌ AI-powered book recommendations</p>
+                                    <p class="text-gray-700">❌ Reading challenges and achievements</p>
+                                    <p class="text-gray-700">❌ Advanced search with filters</p>
+                                    <p class="text-gray-700">❌ Reading statistics and analytics</p>
+                                </div>
+                            </div>
+
+                            <!-- Content Management -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">Content Management (❌ Not Started)</h3>
+                                <div class="space-y-2">
+                                    <p class="text-gray-700">❌ User-created collections</p>
+                                    <p class="text-gray-700">❌ Custom tags and organization</p>
+                                    <p class="text-gray-700">⏳ Reading goals</p>
+                                    <p class="text-gray-700">❌ Enhanced offline support</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileCloseButton = document.getElementById('mobile-close-button');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+            mobileCloseButton.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+            mobileCloseButton.classList.add('hidden');
+        }
+
+        mobileMenuButton.addEventListener('click', openSidebar);
+        mobileCloseButton.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && 
+                !mobileMenuButton.contains(e.target) && 
+                !mobileCloseButton.contains(e.target)) {
+                closeSidebar();
+            }
+        });
+    </script>
+</body>
+</html> 
