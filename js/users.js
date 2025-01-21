@@ -8,15 +8,119 @@ class UsersManager {
     constructor() {
         this.usersRef = collection(db, 'users');
         this.readingStatesRef = collection(db, 'reading_states');
+        
+        // GitHub configuration
+        this.GITHUB_TOKEN = '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';
+        this.REPO_OWNER = 'taiayman';
+        this.REPO_NAME = 'pdf-storage';
+        this.BRANCH = 'main';
+        
+        // Default avatar
+        this.defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNGM0Y0RjYiLz48cGF0aCBkPSJNMTAwIDEwMEMxMjMuMDkgMTAwIDE0MiA4MS4wOSAxNDIgNThDMTQyIDM0LjkxIDEyMy4wOSAxNiAxMDAgMTZDNzYuOTEgMTYgNTggMzQuOTEgNTggNThDNTggODEuMDkgNzYuOTEgMTAwIDEwMCAxMDBaIiBmaWxsPSIjRDFENURCIi8+PHBhdGggZD0iTTUwIDE4MEg1MEMxNTAgMTgwIDE1MCAxMjAgMTUwIDEyMEMxNTAgMTIwIDE1MCAxODAgNTAgMTgwWiIgZmlsbD0iI0QxRDVEQiIvPjwvc3ZnPg==';
+        
         this.filters = {
             search: '',
             status: '',
             membership: '',
             sort: 'name'
         };
+        
         this.setupEventListeners();
         this.setupRealtimeListener();
         this.loadStats();
+    }
+
+    // Read file as base64
+    readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Content = reader.result.split(',')[1];
+                resolve(base64Content);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async uploadToGitHub(file) {
+        try {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                throw new Error('Image size must be less than 5 MB');
+            }
+
+            const content = await this.readFileAsBase64(file);
+            const timestamp = Date.now();
+            const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const path = `avatars/${timestamp}_${sanitizedName}`;
+
+            console.log('Uploading avatar to GitHub:', {
+                path,
+                size: file.size,
+                type: file.type
+            });
+
+            const response = await fetch(`https://api.github.com/repos/${this.REPO_OWNER}/${this.REPO_NAME}/contents/${path}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${this.GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify({
+                    message: `Upload avatar: ${file.name}`,
+                    content: content,
+                    branch: this.BRANCH
+                })
+            });
+
+            const responseData = await response.json();
+            
+            if (!response.ok) {
+                console.error('GitHub API Error Response:', responseData);
+                throw new Error(`Failed to upload avatar to GitHub: ${responseData.message}`);
+            }
+
+            // Use jsDelivr CDN URL for faster delivery
+            const cdnUrl = `https://cdn.jsdelivr.net/gh/${this.REPO_OWNER}/${this.REPO_NAME}@${this.BRANCH}/${path}`;
+            console.log('Successfully uploaded avatar. CDN URL:', cdnUrl);
+            
+            return cdnUrl;
+        } catch (error) {
+            console.error('GitHub avatar upload error:', error);
+            throw error;
+        }
+    }
+
+    showLoading(container) {
+        container.innerHTML = `
+            <div class="flex items-center justify-center p-4">
+                <div class="flex items-center gap-3">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
+                    <span class="text-sm text-gray-700">Uploading avatar...</span>
+                </div>
+            </div>
+        `;
+    }
+
+    resetAvatarUpload() {
+        const avatarPreviewContainer = document.getElementById('avatar-preview-container');
+        const avatarInput = document.getElementById('user-avatar-upload');
+        const avatarUrlInput = document.getElementById('user-avatar-url');
+
+        avatarPreviewContainer.innerHTML = `
+            <div id="avatar-upload-prompt" class="text-center">
+                <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                <button type="button" onclick="document.getElementById('user-avatar-upload').click()" 
+                        class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                    Choose Image
+                </button>
+            </div>
+        `;
+
+        avatarInput.value = '';
+        avatarUrlInput.value = '';
     }
 
     async loadStats() {
@@ -94,8 +198,13 @@ class UsersManager {
                 return;
             }
 
+            // Clear existing content
             usersGrid.innerHTML = '';
             usersTableBody.innerHTML = '';
+
+            // Create document fragment for better performance
+            const gridFragment = document.createDocumentFragment();
+            const listFragment = document.createDocumentFragment();
 
             for (const doc of snapshot.docs) {
                 const user = doc.data();
@@ -114,9 +223,66 @@ class UsersManager {
                 // Get reading stats
                 const readingStats = await this.getUserReadingStats(doc.id);
                 
-                // Create and append user card
-                usersGrid.innerHTML += this.createUserCard(doc.id, user, readingStats);
+                // Create grid card
+                const cardDiv = document.createElement('div');
+                cardDiv.innerHTML = this.createUserCard(doc.id, user, readingStats);
+                const card = cardDiv.firstElementChild;
+                
+                if (card) {
+                    const editButton = card.querySelector('.edit-user');
+                    const deleteButton = card.querySelector('.delete-user');
+                    
+                    if (editButton) {
+                        editButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.editUser(doc.id);
+                        });
+                    }
+                    
+                    if (deleteButton) {
+                        deleteButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.deleteUser(doc.id);
+                        });
+                    }
+                    
+                    gridFragment.appendChild(card);
+                }
+                
+                // Create list item
+                const listDiv = document.createElement('div');
+                listDiv.innerHTML = this.createUserListItem(doc.id, user, readingStats);
+                const listItem = listDiv.firstElementChild;
+                
+                if (listItem) {
+                    const listEditButton = listItem.querySelector('.edit-user');
+                    const listDeleteButton = listItem.querySelector('.delete-user');
+                    
+                    if (listEditButton) {
+                        listEditButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.editUser(doc.id);
+                        });
+                    }
+                    
+                    if (listDeleteButton) {
+                        listDeleteButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.deleteUser(doc.id);
+                        });
+                    }
+                    
+                    listFragment.appendChild(listItem);
+                }
             }
+
+            // Append all elements at once
+            usersGrid.appendChild(gridFragment);
+            usersTableBody.appendChild(listFragment);
 
         } catch (error) {
             console.error('Error loading users:', error);
@@ -159,44 +325,74 @@ class UsersManager {
         
         // Set user avatar and name
         const avatar = card.querySelector('.user-avatar');
-        avatar.src = user.avatar || 'https://via.placeholder.com/100';
+        avatar.src = user.profile_image_url || this.defaultAvatar;
         avatar.alt = user.full_name || '';
         
-        card.querySelector('.user-name').textContent = user.full_name || '';
-        card.querySelector('.user-email').textContent = user.email || '';
-        card.querySelector('.user-phone').textContent = user.phone_number || '';
+        card.querySelector('.user-name').textContent = user.full_name || 'Unnamed User';
+        card.querySelector('.user-email').textContent = user.email || 'No email';
+        card.querySelector('.user-phone').textContent = user.phone_number || 'No phone';
 
-        // Set status and age
-        const statusElement = card.querySelector('.user-status');
+        // Set status based on onboarding_step
         const status = user.onboarding_step === 'onboarding_completed' ? 'active' : 'pending';
+        const statusColors = {
+            'active': 'bg-green-100 text-green-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'blocked': 'bg-red-100 text-red-800'
+        };
+        const statusElement = card.querySelector('.user-status');
         statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        statusElement.className = `user-status px-2 py-1 text-xs rounded-full ${
-            status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-        }`;
+        statusElement.className = `user-status px-2 py-1 text-xs rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`;
 
         // Set age range
-        card.querySelector('.user-age').textContent = user.age_range || 'N/A';
+        const ageElement = card.querySelector('.user-age');
+        if (ageElement) {
+            ageElement.textContent = user.age_range || 'N/A';
+            ageElement.className = 'user-age px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full';
+        }
 
-        // Set country and onboarding
-        card.querySelector('.user-country').textContent = user.country || 'N/A';
-        card.querySelector('.user-onboarding').textContent = 
-            user.onboarding_step?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Not Started';
+        // Set country and onboarding info
+        const countryElement = card.querySelector('.user-country');
+        if (countryElement) {
+            countryElement.textContent = user.country || 'N/A';
+        }
+
+        const onboardingElement = card.querySelector('.user-onboarding');
+        if (onboardingElement) {
+            onboardingElement.textContent = user.onboarding_step?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Not Started';
+        }
 
         // Set preferred genres
-        const genres = user.preferred_genres || [];
-        card.querySelector('.user-genres').textContent = 
-            genres.length > 0 ? `${genres.length} genres` : 'None';
+        const genresElement = card.querySelector('.user-genres');
+        if (genresElement) {
+            const genres = user.preferred_genres || [];
+            genresElement.textContent = genres.length > 0 ? `${genres.length} genres` : 'None';
+        }
 
-        // Set join date
+        // Set join date using date_of_birth as join date
         const joinDate = user.date_of_birth ? 
             new Date(user.date_of_birth).toLocaleDateString() : 'N/A';
         card.querySelector('.user-joined').textContent = `Joined: ${joinDate}`;
 
-        // Set up action buttons
-        card.querySelector('.edit-user').onclick = () => this.editUser(userId);
-        card.querySelector('.delete-user').onclick = () => this.deleteUser(userId);
+        // Set up action buttons with proper event listeners
+        const editButton = card.querySelector('.edit-user');
+        const deleteButton = card.querySelector('.delete-user');
+        
+        const manager = this;
+        editButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            manager.editUser(userId);
+        });
+        
+        deleteButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            manager.deleteUser(userId);
+        });
 
-        return cardElement.outerHTML;
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(card);
+        return wrapper.innerHTML;
     }
 
     createUserListItem(userId, user, stats) {
@@ -208,60 +404,62 @@ class UsersManager {
         
         // Set user avatar and name
         const avatar = row.querySelector('.user-avatar');
-        avatar.src = user.avatar || 'https://via.placeholder.com/32';
-        avatar.alt = `${user.firstname} ${user.lastname}`;
+        avatar.src = user.profile_image_url || this.defaultAvatar;
+        avatar.alt = user.full_name || '';
         
-        row.querySelector('.user-name').textContent = `${user.firstname} ${user.lastname}`;
-        row.querySelector('.user-books').textContent = `${stats.totalBooks} books`;
-        row.querySelector('.user-email').textContent = user.email;
+        row.querySelector('.user-name').textContent = user.full_name || 'Unnamed User';
+        row.querySelector('.user-books').textContent = `${stats?.totalBooks || 0} books`;
+        row.querySelector('.user-email').textContent = user.email || 'No email';
 
-        // Set status
+        // Set status based on onboarding_step
+        const status = user.onboarding_step === 'onboarding_completed' ? 'active' : 'pending';
         const statusColors = {
             'active': 'bg-green-100 text-green-800',
-            'inactive': 'bg-gray-100 text-gray-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
             'blocked': 'bg-red-100 text-red-800'
         };
         const statusElement = row.querySelector('.user-status');
-        statusElement.textContent = user.status.charAt(0).toUpperCase() + user.status.slice(1);
-        statusElement.className = `user-status px-2 py-1 text-xs rounded-full ${statusColors[user.status] || 'bg-gray-100 text-gray-800'}`;
+        statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        statusElement.className = `user-status px-2 py-1 text-xs rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`;
 
-        // Set membership
-        const membershipElement = row.querySelector('.user-membership');
-        if (user.isPremium) {
-            membershipElement.textContent = 'Premium';
-            membershipElement.className = 'user-membership px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full';
-        } else {
-            membershipElement.textContent = 'Free';
-            membershipElement.className = 'user-membership px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full';
-        }
-
-        // Set join date
-        const joinDate = user.created_at ? 
-            (user.created_at instanceof Date ? user.created_at : 
-             user.created_at.toDate ? user.created_at.toDate() : 
-             new Date(user.created_at)).toLocaleDateString() : 'N/A';
+        // Set join date using date_of_birth as join date
+        const joinDate = user.date_of_birth ? 
+            new Date(user.date_of_birth).toLocaleDateString() : 'N/A';
         row.querySelector('.user-joined').textContent = joinDate;
 
-        // Set up action buttons
-        row.querySelector('.edit-user').onclick = () => this.editUser(userId);
-        row.querySelector('.delete-user').onclick = () => this.deleteUser(userId);
+        // Set up action buttons with proper event listeners
+        const editButton = row.querySelector('.edit-user');
+        const deleteButton = row.querySelector('.delete-user');
+        
+        const manager = this;
+        editButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            manager.editUser(userId);
+        });
+        
+        deleteButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            manager.deleteUser(userId);
+        });
 
-        return rowElement.outerHTML;
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(row);
+        return wrapper.innerHTML;
     }
 
     async addUser(formData) {
         try {
             const newUser = {
-                firstname: formData.get('firstname'),
-                lastname: formData.get('lastname'),
+                full_name: formData.get('name'),
                 email: formData.get('email'),
-                phone: formData.get('phone'),
-                status: formData.get('status'),
-                isPremium: formData.get('isPremium') === 'on',
-                isVerified: formData.get('isVerified') === 'on',
-                avatar: 'https://via.placeholder.com/100',
-                created_at: serverTimestamp(),
-                updated_at: serverTimestamp()
+                phone_number: formData.get('phone'),
+                onboarding_step: formData.get('status') === 'active' ? 'onboarding_completed' : 'pending',
+                profile_image_url: formData.get('avatarUrl') || this.defaultAvatar,
+                date_of_birth: new Date().toISOString(),
+                updated_at: serverTimestamp(),
+                created_at: serverTimestamp()
             };
 
             await addDoc(this.usersRef, newUser);
@@ -287,14 +485,32 @@ class UsersManager {
             form.dataset.userId = userId;
             
             document.getElementById('modal-title').textContent = 'Edit User';
-            document.getElementById('user-firstname').value = user.firstname || user.full_name || '';
-            document.getElementById('user-lastname').value = user.lastname || '';
+            document.getElementById('user-name').value = user.full_name || '';
             document.getElementById('user-email').value = user.email || '';
-            document.getElementById('user-phone').value = user.phone_number || user.phone || '';
-            document.getElementById('user-status').value = user.status || 'active';
-            document.getElementById('user-premium').checked = user.isPremium || false;
-            document.getElementById('user-verified').checked = user.isVerified || false;
-            document.getElementById('avatar-preview').src = user.avatar || 'https://via.placeholder.com/100';
+            document.getElementById('user-phone').value = user.phone_number || '';
+            document.getElementById('user-status').value = user.onboarding_step === 'onboarding_completed' ? 'active' : 'pending';
+            
+            // Reset avatar upload
+            this.resetAvatarUpload();
+            
+            // Handle avatar preview if exists
+            if (user.profile_image_url && user.profile_image_url !== this.defaultAvatar) {
+                const avatarPreviewContainer = document.getElementById('avatar-preview-container');
+                avatarPreviewContainer.innerHTML = `
+                    <div id="avatar-upload-prompt" class="text-center">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                        <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                        <button type="button" onclick="document.getElementById('user-avatar-upload').click()" 
+                                class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                            Choose Image
+                        </button>
+                        <div class="mt-4">
+                            <img src="${user.profile_image_url}" alt="${user.full_name || ''}" class="mx-auto w-32 h-32 rounded-full object-cover border-2 border-gray-200">
+                        </div>
+                    </div>
+                `;
+                document.getElementById('user-avatar-url').value = user.profile_image_url;
+            }
             
             modal.classList.remove('hidden');
         } catch (error) {
@@ -306,17 +522,19 @@ class UsersManager {
     async updateUser(userId, formData) {
         try {
             const updateData = {
-                firstname: formData.get('firstname'),
-                lastname: formData.get('lastname'),
+                full_name: formData.get('name'),
                 email: formData.get('email'),
-                phone: formData.get('phone'),
-                status: formData.get('status'),
-                isPremium: formData.get('isPremium') === 'on',
-                isVerified: formData.get('isVerified') === 'on',
+                phone_number: formData.get('phone'),
+                onboarding_step: formData.get('status') === 'active' ? 'onboarding_completed' : 'pending',
                 updated_at: serverTimestamp()
             };
 
-            await updateDoc(doc(db, 'users', userId), updateData);
+            // Only update avatar URL if a new image was uploaded
+            if (formData.get('avatarUrl')) {
+                updateData.profile_image_url = formData.get('avatarUrl');
+            }
+
+            await updateDoc(doc(this.usersRef, userId), updateData);
             this.closeModal();
             alert('User updated successfully!');
         } catch (error) {
@@ -338,7 +556,7 @@ class UsersManager {
                     return;
                 }
 
-                await deleteDoc(doc(db, 'users', userId));
+                await deleteDoc(doc(this.usersRef, userId));
                 this.loadStats();
                 alert('User deleted successfully!');
             } catch (error) {
@@ -349,7 +567,7 @@ class UsersManager {
     }
 
     setupRealtimeListener() {
-        onSnapshot(query(this.usersRef, orderBy('updated_at', 'desc')), (snapshot) => {
+        onSnapshot(query(this.usersRef, orderBy('created_at', 'desc')), (snapshot) => {
             this.loadStats();
             this.loadUsers();
         });
@@ -360,8 +578,10 @@ class UsersManager {
         const form = modal.querySelector('#user-form');
         form.reset();
         delete form.dataset.userId;
-        document.getElementById('avatar-preview').src = 'https://via.placeholder.com/100';
-        document.getElementById('modal-title').textContent = 'Add New User';
+        
+        // Reset avatar upload
+        this.resetAvatarUpload();
+        
         modal.classList.add('hidden');
     }
 
@@ -417,9 +637,71 @@ class UsersManager {
             }
         });
 
-        // Avatar change button
-        document.getElementById('change-avatar').addEventListener('click', () => {
-            alert('Avatar upload functionality will be implemented later');
+        // Avatar upload handling
+        const avatarInput = document.getElementById('user-avatar-upload');
+        const avatarPreviewContainer = document.getElementById('avatar-preview-container');
+
+        avatarInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    try {
+                        this.showLoading(avatarPreviewContainer);
+                        const url = await this.uploadToGitHub(file);
+                        
+                        avatarPreviewContainer.innerHTML = `
+                            <div id="avatar-upload-prompt" class="text-center">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                                <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                                <button type="button" onclick="document.getElementById('user-avatar-upload').click()" 
+                                        class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                    Choose Image
+                                </button>
+                                <div class="mt-4">
+                                    <img src="${url}" alt="" class="mx-auto w-32 h-32 rounded-full object-cover border-2 border-gray-200">
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('user-avatar-url').value = url;
+                    } catch (error) {
+                        alert(error.message);
+                        this.resetAvatarUpload();
+                    }
+                } else {
+                    alert('Please select an image file.');
+                    this.resetAvatarUpload();
+                }
+            }
+        });
+
+        // Drag and drop handling for avatar
+        avatarPreviewContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            avatarPreviewContainer.classList.add('border-orange-500');
+        });
+
+        avatarPreviewContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            avatarPreviewContainer.classList.remove('border-orange-500');
+        });
+
+        avatarPreviewContainer.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            avatarPreviewContainer.classList.remove('border-orange-500');
+
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    avatarInput.files = e.dataTransfer.files;
+                    const event = new Event('change');
+                    avatarInput.dispatchEvent(event);
+                } else {
+                    alert('Please drop an image file.');
+                }
+            }
         });
     }
 }
