@@ -8,6 +8,16 @@ class BooksManager {
     constructor() {
         this.booksRef = collection(db, 'books');
         this.genresRef = collection(db, 'academic_genres');
+        
+        // GitHub configuration
+        this.GITHUB_TOKEN = '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';
+        this.REPO_OWNER = 'taiayman';
+        this.REPO_NAME = 'pdf-storage';
+        this.BRANCH = 'main';
+        
+        // Default images
+        this.defaultBookCover = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNGM0Y0RjYiLz48cGF0aCBkPSJNMTUwIDEwMEMxNzMuMDkgMTAwIDE5MiA4MS4wOSAxOTIgNThDMTkyIDM0LjkxIDE3My4wOSAxNiAxNTAgMTZDMTI2LjkxIDE2IDEwOCAzNC45MSAxMDggNThDMTA4IDgxLjA5IDEyNi45MSAxMDAgMTUwIDEwMFoiIGZpbGw9IiNEMUQ1REIiLz48dGV4dCB4PSIxNTAiIHk9IjE0MCIgdGV4dD0iYW5jaG9yIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI0IiBmb250LWZhbWlseT0ic3lzdGVtLXVpLCBzYW5zLXNlcmlmIiBmaWxsPSIjNkI3MjgwIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+        
         this.filters = {
             search: '',
             genre: '',
@@ -16,16 +26,138 @@ class BooksManager {
         };
         this.availableGenres = [];
         this.selectedGenres = new Set();
+        
         this.loadGenres();
         this.setupEventListeners();
         this.setupRealtimeListener();
-        this.setupUploadcare();
+    }
+
+    // Read file as base64
+    readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Content = reader.result.split(',')[1];
+                resolve(base64Content);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async uploadToGitHub(file, type = 'pdf') {
+        try {
+            const content = await this.readFileAsBase64(file);
+            const timestamp = Date.now();
+            const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            
+            // Determine the correct path based on file type
+            let path;
+            if (type === 'image') {
+                path = `images/${timestamp}_${sanitizedName}`; // Use images directory for images
+            } else {
+                path = `pdfs/${timestamp}_${sanitizedName}`; // Use pdfs directory for PDFs
+            }
+            
+            console.log(`Uploading ${type} to GitHub:`, {
+                path,
+                size: file.size,
+                type: file.type
+            });
+
+            const response = await fetch(`https://api.github.com/repos/${this.REPO_OWNER}/${this.REPO_NAME}/contents/${path}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${this.GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify({
+                    message: `Upload ${type}: ${file.name}`,
+                    content: content,
+                    branch: this.BRANCH
+                })
+            });
+
+            const responseData = await response.json();
+            
+            if (!response.ok) {
+                console.error('GitHub API Error Response:', responseData);
+                throw new Error(`Failed to upload ${type} to GitHub: ${responseData.message}`);
+            }
+
+            // Convert GitHub raw URL to jsDelivr CDN URL
+            const cdnUrl = `https://cdn.jsdelivr.net/gh/${this.REPO_OWNER}/${this.REPO_NAME}@${this.BRANCH}/${path}`;
+            console.log(`Successfully uploaded ${type}. CDN URL:`, cdnUrl);
+            
+            return {
+                url: cdnUrl,
+                path: path
+            };
+        } catch (error) {
+            console.error(`GitHub ${type} upload error:`, error);
+            // Add more detailed error information
+            const errorMessage = error.response ? 
+                `${error.message} (Status: ${error.response.status})` : 
+                error.message;
+            throw new Error(`Failed to upload ${type} to GitHub: ${errorMessage}`);
+        }
+    }
+
+    showLoading(container, type) {
+        container.innerHTML = `
+            <div class="flex items-center justify-center p-4">
+                <div class="flex items-center gap-3">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
+                    <span class="text-sm text-gray-700">Uploading ${type}...</span>
+                </div>
+            </div>
+        `;
+    }
+
+    resetImageUpload() {
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imageInput = document.getElementById('book-cover-upload');
+        const imageUrlInput = document.getElementById('book-cover-url');
+
+        imagePreviewContainer.innerHTML = `
+            <div id="image-upload-prompt" class="text-center">
+                <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                <button type="button" onclick="document.getElementById('book-cover-upload').click()" 
+                        class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                    Choose Image
+                </button>
+            </div>
+        `;
+
+        imageInput.value = '';
+        imageUrlInput.value = '';
+    }
+
+    resetPdfUpload() {
+        const pdfPreviewContainer = document.getElementById('pdf-preview-container');
+        const pdfInput = document.getElementById('book-pdf-upload');
+        const pdfUrlInput = document.getElementById('book-pdf-url');
+
+        pdfPreviewContainer.innerHTML = `
+            <div id="pdf-upload-prompt" class="text-center">
+                <i class="fas fa-file-pdf text-4xl text-orange-400 mb-2"></i>
+                <p class="text-sm text-gray-600">Drag and drop a PDF here, or</p>
+                <button type="button" onclick="document.getElementById('book-pdf-upload').click()" 
+                        class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                    Choose PDF
+                </button>
+            </div>
+        `;
+
+        pdfInput.value = '';
+        pdfUrlInput.value = '';
     }
 
     async loadGenres() {
         try {
             const snapshot = await getDocs(query(this.genresRef, orderBy('name')));
-            const genreFilter = document.getElementById('genre-filter');
             const genreSelect = document.getElementById('book-genres');
             
             this.availableGenres = [];
@@ -36,19 +168,17 @@ class BooksManager {
 
             this.availableGenres.sort();
 
-            // Update filter dropdown
-            genreFilter.innerHTML = '<option value="">All Genres</option>' +
-                this.availableGenres.map(genre => `<option value="${genre}">${genre}</option>`).join('');
-
             // Update hidden select for form submission
-            genreSelect.innerHTML = this.availableGenres.map(genre => 
-                `<option value="${genre}">${genre}</option>`
-            ).join('');
+            if (genreSelect) {
+                genreSelect.innerHTML = this.availableGenres.map(genre => 
+                    `<option value="${genre}">${genre}</option>`
+                ).join('');
+            }
 
             // Initialize genre options
             this.updateGenreOptions();
         } catch (error) {
-            handleError(error);
+            console.error('Error loading genres:', error);
         }
     }
 
@@ -188,58 +318,73 @@ class BooksManager {
     }
 
     createBookCard(bookId, book) {
-        const releaseDate = book.releaseDate ? new Date(book.releaseDate).toLocaleDateString() : 'N/A';
-        
         return `
-            <div class="group relative" data-book-id="${bookId}">
-                <div class="transform-gpu transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl bg-white rounded-xl overflow-hidden">
-                    <div class="relative h-48 sm:h-64">
-                        <img src="${book.imageUrl || 'https://via.placeholder.com/300x400?text=No+Cover'}" 
-                             alt="${book.title}" 
-                             class="w-full h-full object-cover"
-                             onerror="this.src='https://via.placeholder.com/300x400?text=Error+Loading+Cover'">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                        ${book.featured ? 
-                            `<span class="absolute top-2 right-2 px-2 py-1 bg-yellow-400 text-xs font-bold rounded-full">
-                                FEATURED
-                            </span>` : ''}
-                        ${book.isPremium ? 
-                            `<span class="absolute top-2 left-2 px-2 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">
-                                PREMIUM
-                            </span>` : ''}
-                        <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
-                            <h3 class="font-semibold text-lg leading-tight line-clamp-2">${book.title}</h3>
-                            <p class="text-sm opacity-90">${book.author}</p>
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div class="relative aspect-[3/4] overflow-hidden bg-gray-100">
+                    <img src="${book.coverUrl || book.imageUrl}" 
+                         alt="${book.title}" 
+                         class="w-full h-full object-cover transition-transform hover:scale-105"
+                         onerror="this.src='${this.defaultBookCover}'">
+                    ${book.isPremium ? `
+                        <div class="absolute top-2 right-2">
+                            <span class="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                                <i class="fas fa-crown mr-1"></i>Premium
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="p-4">
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-semibold text-gray-800 line-clamp-2">${book.title}</h3>
+                        <div class="flex gap-1 text-sm">
+                            ${this.createRatingStars(book.rating)}
                         </div>
                     </div>
                     
-                    <div class="p-4">
-                        <div class="flex items-center justify-between mb-2">
-                            ${this.createRatingStars(book.rating)}
-                            <span class="text-sm text-gray-600">${book.pageCount} pages</span>
-                        </div>
-                        <div class="flex flex-wrap gap-1 mb-3">
-                            ${book.genres.map(genre => 
-                                `<span class="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full">
-                                    ${genre}
-                                </span>`
-                            ).join('')}
-                        </div>
-                        <div class="flex justify-between items-center pt-2 border-t border-gray-100">
-                            <div class="flex space-x-2">
-                                <button onclick="booksManager.editBook('${bookId}')" 
-                                        class="p-2 text-orange-500 hover:text-orange-700 transition-colors">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button onclick="booksManager.deleteBook('${bookId}')"
-                                        class="p-2 text-red-500 hover:text-red-700 transition-colors">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                            <button onclick="booksManager.viewBookDetails('${bookId}')"
-                                    class="flex items-center text-orange-500 hover:text-orange-700 transition-colors">
-                                <span class="text-sm mr-1">View</span>
-                                <i class="fas fa-external-link-alt"></i>
+                    <p class="text-sm text-gray-600 mt-1">${book.author}</p>
+                    
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        ${book.genres.slice(0, 2).map(genre => `
+                            <span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                                ${genre}
+                            </span>
+                        `).join('')}
+                        ${book.genres.length > 2 ? `
+                            <span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                                +${book.genres.length - 2}
+                            </span>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="mt-3 text-xs text-gray-500 flex items-center gap-3">
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-book"></i>
+                            ${book.pageCount} pages
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-calendar"></i>
+                            ${book.releaseDate ? new Date(book.releaseDate).getFullYear() : 'N/A'}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-globe"></i>
+                            ${book.language.toUpperCase()}
+                        </span>
+                    </div>
+                    
+                    <div class="mt-4 flex items-center justify-between gap-2">
+                        <button onclick="booksManager.viewBookDetails('${bookId}')" 
+                                class="flex-1 bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-orange-600 transition-colors">
+                            View Details
+                        </button>
+                        <div class="flex gap-1">
+                            <button onclick="booksManager.editBook('${bookId}')"
+                                    class="p-1.5 text-gray-500 hover:text-orange-500 transition-colors">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="booksManager.deleteBook('${bookId}')"
+                                    class="p-1.5 text-gray-500 hover:text-red-500 transition-colors">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </div>
@@ -253,10 +398,10 @@ class BooksManager {
             <tr class="border-b hover:bg-gray-50" data-book-id="${bookId}">
                 <td class="px-4 py-3">
                     <div class="flex items-center space-x-3">
-                        <img src="${book.imageUrl || 'https://via.placeholder.com/40x60?text=No+Cover'}" 
+                        <img src="${book.coverUrl || book.imageUrl || this.defaultBookCover}" 
                              alt="${book.title}"
                              class="w-10 h-15 object-cover rounded"
-                             onerror="this.src='https://via.placeholder.com/40x60?text=Error'">
+                             onerror="this.src='${this.defaultBookCover}'">
                         <div>
                             <div class="font-medium text-gray-900">${book.title}</div>
                             <div class="text-sm text-gray-500 line-clamp-1">
@@ -318,36 +463,35 @@ class BooksManager {
 
     async addBook(formData) {
         try {
-            const genreSelect = document.getElementById('book-genres');
-            const selectedGenres = Array.from(genreSelect.selectedOptions).map(option => option.value);
-
-            const newBook = {
+            const bookData = {
                 title: formData.get('title'),
                 author: formData.get('author'),
                 description: formData.get('description'),
-                publisher: formData.get('publisher'),
-                releaseDate: formData.get('releaseDate'),
-                pageCount: parseInt(formData.get('pageCount')),
-                rating: parseFloat(formData.get('rating')),
-                genres: selectedGenres,
-                isPremium: formData.get('isPremium') === 'on',
-                featured: formData.get('featured') === 'on',
+                coverUrl: formData.get('coverUrl'),
                 imageUrl: formData.get('imageUrl'),
                 pdfUrl: formData.get('pdfUrl'),
+                genres: Array.from(formData.getAll('genres')),
+                language: formData.get('language'),
+                pageCount: parseInt(formData.get('pages')) || 0,
+                pages: 0,
+                publisher: formData.get('publisher'),
+                rating: parseFloat(formData.get('rating')) || 0,
+                releaseDate: formData.get('releaseDate'),
+                isPremium: formData.get('isPremium') === 'true',
+                featured: false,
                 created_at: serverTimestamp()
             };
 
-            await addDoc(this.booksRef, newBook);
+            await addDoc(this.booksRef, bookData);
             this.closeModal();
-            alert('Book added successfully!');
         } catch (error) {
-            handleError(error);
+            handleError('Error adding book', error);
         }
     }
 
     async editBook(bookId) {
         try {
-            const bookDoc = await getDoc(doc(db, 'books', bookId));
+            const bookDoc = await getDoc(doc(this.booksRef, bookId));
             if (!bookDoc.exists()) {
                 throw new Error('Book not found');
             }
@@ -357,80 +501,129 @@ class BooksManager {
             const form = modal.querySelector('#book-form');
             form.dataset.bookId = bookId;
             
+            // Update modal title
             document.getElementById('modal-title').textContent = 'Edit Book';
-            document.getElementById('book-title').value = book.title;
-            document.getElementById('book-author').value = book.author;
-            document.getElementById('book-description').value = book.description;
-            document.getElementById('book-publisher').value = book.publisher;
-            document.getElementById('book-release-date').value = book.releaseDate;
-            document.getElementById('book-page-count').value = book.pageCount;
-            document.getElementById('book-rating').value = book.rating;
-            document.getElementById('book-premium').checked = book.isPremium;
-            document.getElementById('book-featured').checked = book.featured;
-            document.getElementById('book-image-url').value = book.imageUrl || '';
-            
-            // Update PDF preview if exists
-            if (book.pdfUrl) {
-                const preview = document.getElementById('pdf-preview');
-                const filename = document.getElementById('pdf-filename');
-                const pdfUrlInput = document.querySelector('input[name="pdfUrl"]');
-                
-                preview.classList.remove('hidden');
-                filename.textContent = 'Current PDF file';
-                pdfUrlInput.value = book.pdfUrl;
-            }
 
-            // Update selected genres
-            this.selectedGenres = new Set(book.genres);
-            this.updateSelectedGenres();
-            this.updateGenreOptions();
+            // Set form field values
+            const fields = {
+                'book-title': book.title || '',
+                'book-author': book.author || '',
+                'book-description': book.description || '',
+                'book-language': book.language || '',
+                'book-publisher': book.publisher || '',
+                'book-release-date': book.releaseDate || '',
+                'book-pages': book.pageCount || 0,
+                'book-rating': book.rating || 0,
+                'book-premium': book.isPremium ? 'true' : 'false'
+            };
+
+            // Update form fields
+            Object.entries(fields).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.value = value;
+                }
+            });
             
-            const imagePreview = document.getElementById('image-preview');
-            if (book.imageUrl) {
-                imagePreview.src = book.imageUrl;
-                imagePreview.classList.remove('hidden');
-            } else {
-                imagePreview.classList.add('hidden');
-                imagePreview.src = '';
+            // Reset uploads
+            this.resetImageUpload();
+            this.resetPdfUpload();
+            
+            // Handle cover preview if exists
+            if (book.coverUrl || book.imageUrl) {
+                const imagePreviewContainer = document.getElementById('image-preview-container');
+                if (imagePreviewContainer) {
+                    imagePreviewContainer.innerHTML = `
+                        <div id="image-upload-prompt" class="text-center">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                            <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                            <button type="button" onclick="document.getElementById('book-cover-upload').click()" 
+                                    class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                Choose Image
+                            </button>
+                            <div class="mt-4">
+                                <img src="${book.coverUrl || book.imageUrl}" alt="" class="mx-auto max-h-48 rounded-lg border-2 border-gray-200">
+                            </div>
+                        </div>
+                    `;
+                }
+                const coverUrlInput = document.getElementById('book-cover-url');
+                const imageUrlInput = document.getElementById('book-image-url');
+                if (coverUrlInput) coverUrlInput.value = book.coverUrl || '';
+                if (imageUrlInput) imageUrlInput.value = book.imageUrl || '';
             }
             
+            // Handle PDF preview if exists
+            if (book.pdfUrl) {
+                const pdfPreviewContainer = document.getElementById('pdf-preview-container');
+                if (pdfPreviewContainer) {
+                    pdfPreviewContainer.innerHTML = `
+                        <div id="pdf-upload-prompt" class="text-center">
+                            <i class="fas fa-file-pdf text-4xl text-orange-400 mb-2"></i>
+                            <p class="text-sm text-gray-600">Drag and drop a PDF here, or</p>
+                            <button type="button" onclick="document.getElementById('book-pdf-upload').click()" 
+                                    class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                Choose PDF
+                            </button>
+                            <div class="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                                <i class="fas fa-check-circle text-green-500"></i>
+                                PDF already uploaded
+                            </div>
+                        </div>
+                    `;
+                }
+                const pdfUrlInput = document.getElementById('book-pdf-url');
+                if (pdfUrlInput) pdfUrlInput.value = book.pdfUrl;
+            }
+            
+            // Reset and update genres
+            this.selectedGenres.clear();
+            if (book.genres && Array.isArray(book.genres)) {
+                book.genres.forEach(genre => this.selectedGenres.add(genre));
+            }
+            this.updateGenreOptions();
+            this.updateSelectedGenres();
+            
+            // Show modal
             modal.classList.remove('hidden');
         } catch (error) {
-            handleError(error);
+            console.error('Error loading book:', error);
+            handleError('Error loading book', error);
         }
     }
 
     async updateBook(bookId, formData) {
         try {
-            const updateData = {
+            const bookRef = doc(this.booksRef, bookId);
+            const bookData = {
                 title: formData.get('title'),
                 author: formData.get('author'),
                 description: formData.get('description'),
-                publisher: formData.get('publisher'),
-                releaseDate: formData.get('releaseDate'),
-                pageCount: parseInt(formData.get('pageCount')),
-                rating: parseFloat(formData.get('rating')),
-                isPremium: formData.get('isPremium') === 'on',
-                featured: formData.get('featured') === 'on',
+                coverUrl: formData.get('coverUrl'),
                 imageUrl: formData.get('imageUrl'),
-                pdfUrl: formData.get('pdfUrl')
+                pdfUrl: formData.get('pdfUrl'),
+                genres: Array.from(formData.getAll('genres')),
+                language: formData.get('language'),
+                pageCount: parseInt(formData.get('pages')) || 0,
+                pages: 0,
+                publisher: formData.get('publisher'),
+                rating: parseFloat(formData.get('rating')) || 0,
+                releaseDate: formData.get('releaseDate'),
+                isPremium: formData.get('isPremium') === 'true',
+                featured: false
             };
 
-            const genreSelect = document.getElementById('book-genres');
-            updateData.genres = Array.from(genreSelect.selectedOptions).map(option => option.value);
-
-            await updateDoc(doc(db, 'books', bookId), updateData);
+            await updateDoc(bookRef, bookData);
             this.closeModal();
-            alert('Book updated successfully!');
         } catch (error) {
-            handleError(error);
+            handleError('Error updating book', error);
         }
     }
 
     async deleteBook(bookId) {
         if (confirm('Are you sure you want to delete this book?')) {
             try {
-                await deleteDoc(doc(db, 'books', bookId));
+                await deleteDoc(doc(this.booksRef, bookId));
                 alert('Book deleted successfully!');
             } catch (error) {
                 handleError(error);
@@ -440,7 +633,7 @@ class BooksManager {
 
     async viewBookDetails(bookId) {
         try {
-            const bookDoc = await getDoc(doc(db, 'books', bookId));
+            const bookDoc = await getDoc(doc(this.booksRef, bookId));
             if (!bookDoc.exists()) {
                 throw new Error('Book not found');
             }
@@ -477,101 +670,57 @@ class BooksManager {
         const form = modal.querySelector('#book-form');
         form.reset();
         delete form.dataset.bookId;
-        document.getElementById('modal-title').textContent = 'Add New Book';
         
-        document.getElementById('image-preview').classList.add('hidden');
-        document.getElementById('image-preview').src = '';
+        // Reset uploads
+        this.resetImageUpload();
+        this.resetPdfUpload();
         
-        // Clear selected genres
+        // Reset genres
         this.selectedGenres.clear();
-        this.updateSelectedGenres();
         this.updateGenreOptions();
-        
-        const stars = document.querySelectorAll('#book-rating + div i');
-        stars.forEach(star => star.className = 'far fa-star');
-        
-        // Reset PDF upload
-        document.getElementById('pdf-preview').classList.add('hidden');
-        document.getElementById('pdf-filename').textContent = '';
-        
-        const widget = uploadcare.Widget('[role=uploadcare-uploader]');
-        widget.value(null);
         
         modal.classList.add('hidden');
     }
 
     setupEventListeners() {
+        // Search functionality
         document.getElementById('search-input').addEventListener('input', (e) => {
             this.filters.search = e.target.value.toLowerCase();
             this.loadBooks();
         });
 
+        // Genre filter
         document.getElementById('genre-filter').addEventListener('change', (e) => {
             this.filters.genre = e.target.value;
             this.loadBooks();
         });
 
+        // Type filter
         document.getElementById('type-filter').addEventListener('change', (e) => {
             this.filters.type = e.target.value;
             this.loadBooks();
         });
 
+        // Sort selection
         document.getElementById('sort-select').addEventListener('change', (e) => {
             this.filters.sort = e.target.value;
             this.loadBooks();
         });
 
+        // Add book button
         document.getElementById('add-book-btn').addEventListener('click', () => {
             document.getElementById('book-modal').classList.remove('hidden');
         });
 
-        document.getElementById('close-modal').addEventListener('click', () => {
-            this.closeModal();
-        });
-
-        document.getElementById('cancel-modal').addEventListener('click', () => {
-            this.closeModal();
-        });
-
-        // Preview image when URL is entered
-        document.getElementById('book-image-url').addEventListener('input', (e) => {
-            const imageUrl = e.target.value;
-            const preview = document.getElementById('image-preview');
-            
-            if (imageUrl && this.isValidUrl(imageUrl)) {
-                preview.src = imageUrl;
-                preview.classList.remove('hidden');
-                preview.onerror = () => {
-                    preview.classList.add('hidden');
-                    preview.src = '';
-                };
-            } else {
-                preview.classList.add('hidden');
-                preview.src = '';
-            }
-        });
-
-        const ratingInput = document.getElementById('book-rating');
-        const updateStars = (rating) => {
-            const stars = ratingInput.nextElementSibling.querySelectorAll('i');
-            stars.forEach((star, index) => {
-                if (index < Math.floor(rating)) {
-                    star.className = 'fas fa-star';
-                } else if (index === Math.floor(rating) && rating % 1 >= 0.5) {
-                    star.className = 'fas fa-star-half-alt';
-                } else {
-                    star.className = 'far fa-star';
-                }
+        // Close modal buttons
+        const closeButtons = document.querySelectorAll('#close-modal');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                this.closeModal();
             });
-        };
-
-        ratingInput.addEventListener('input', (e) => {
-            const rating = parseFloat(e.target.value);
-            if (rating >= 0 && rating <= 5) {
-                updateStars(rating);
-            }
         });
 
+        // Form submission
         document.getElementById('book-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const bookId = e.target.dataset.bookId;
@@ -581,6 +730,151 @@ class BooksManager {
                 await this.updateBook(bookId, formData);
             } else {
                 await this.addBook(formData);
+            }
+        });
+
+        // Image upload handling
+        const imageInput = document.getElementById('book-cover-upload');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+
+        imageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                        alert('Image size must be less than 5 MB');
+                        return;
+                    }
+                    try {
+                        this.showLoading(imagePreviewContainer, 'image');
+                        const { url } = await this.uploadToGitHub(file, 'image');
+                        
+                        imagePreviewContainer.innerHTML = `
+                            <div id="image-upload-prompt" class="text-center">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                                <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                                <button type="button" onclick="document.getElementById('book-cover-upload').click()" 
+                                        class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                    Choose Image
+                                </button>
+                                <div class="mt-4">
+                                    <img src="${url}" alt="" class="mx-auto max-h-48 rounded-lg border-2 border-gray-200">
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('book-cover-url').value = url;
+                    } catch (error) {
+                        console.error('Error uploading image:', error);
+                        alert(error.message);
+                        this.resetImageUpload();
+                    }
+                } else {
+                    alert('Please select an image file.');
+                    this.resetImageUpload();
+                }
+            }
+        });
+
+        // PDF upload handling
+        const pdfInput = document.getElementById('book-pdf-upload');
+        const pdfPreviewContainer = document.getElementById('pdf-preview-container');
+
+        pdfInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type === 'application/pdf') {
+                    if (file.size > 50 * 1024 * 1024) { // 50MB limit
+                        alert('PDF size must be less than 50 MB');
+                        return;
+                    }
+                    try {
+                        this.showLoading(pdfPreviewContainer, 'PDF');
+                        const { url } = await this.uploadToGitHub(file, 'pdf');
+                        
+                        pdfPreviewContainer.innerHTML = `
+                            <div id="pdf-upload-prompt" class="text-center">
+                                <i class="fas fa-file-pdf text-4xl text-orange-400 mb-2"></i>
+                                <p class="text-sm text-gray-600">Drag and drop a PDF here, or</p>
+                                <button type="button" onclick="document.getElementById('book-pdf-upload').click()" 
+                                        class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                    Choose PDF
+                                </button>
+                                <div class="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    PDF uploaded successfully
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('book-pdf-url').value = url;
+                    } catch (error) {
+                        console.error('Error uploading PDF:', error);
+                        alert(error.message);
+                        this.resetPdfUpload();
+                    }
+                } else {
+                    alert('Please select a PDF file.');
+                    this.resetPdfUpload();
+                }
+            }
+        });
+
+        // Drag and drop handling for images
+        imagePreviewContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            imagePreviewContainer.classList.add('border-orange-500');
+        });
+
+        imagePreviewContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            imagePreviewContainer.classList.remove('border-orange-500');
+        });
+
+        imagePreviewContainer.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            imagePreviewContainer.classList.remove('border-orange-500');
+
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    imageInput.files = e.dataTransfer.files;
+                    const event = new Event('change');
+                    imageInput.dispatchEvent(event);
+                } else {
+                    alert('Please drop an image file.');
+                }
+            }
+        });
+
+        // Drag and drop handling for PDFs
+        pdfPreviewContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfPreviewContainer.classList.add('border-orange-500');
+        });
+
+        pdfPreviewContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfPreviewContainer.classList.remove('border-orange-500');
+        });
+
+        pdfPreviewContainer.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfPreviewContainer.classList.remove('border-orange-500');
+
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                if (file.type === 'application/pdf') {
+                    pdfInput.files = e.dataTransfer.files;
+                    const event = new Event('change');
+                    pdfInput.dispatchEvent(event);
+                } else {
+                    alert('Please drop a PDF file.');
+                }
             }
         });
 
@@ -595,112 +889,6 @@ class BooksManager {
         } catch (_) {
             return false;
         }
-    }
-
-    setupUploadcare() {
-        const pdfInput = document.getElementById('book-pdf-upload');
-        const preview = document.getElementById('pdf-preview');
-        const filename = document.getElementById('pdf-filename');
-        const removeButton = document.getElementById('remove-pdf');
-        const pdfUrlInput = document.querySelector('input[name="pdfUrl"]');
-        
-        // Upload file to 0x0.st
-        async function uploadFile(file) {
-            try {
-                console.log('Starting file upload...');
-                const formData = new FormData();
-                formData.append('file', file);
-                // Add secret flag for harder-to-guess URLs
-                formData.append('secret', '');
-                // Set expiration to 180 days (in hours)
-                formData.append('expires', 180 * 24);
-                
-                const response = await fetch('https://0x0.st', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Upload response error:', errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                console.log('Upload response status:', response.status);
-                const downloadUrl = await response.text();
-                console.log('Download URL:', downloadUrl);
-                
-                if (!downloadUrl || !downloadUrl.startsWith('http')) {
-                    throw new Error('Invalid response from server');
-                }
-                
-                // Append original filename to the URL
-                const safeFileName = encodeURIComponent(file.name);
-                return `${downloadUrl.trim()}/${safeFileName}`;
-            } catch (error) {
-                console.error('Error uploading file:', error);
-                if (error instanceof TypeError && error.message === 'Failed to fetch') {
-                    throw new Error('Network error - please check your internet connection and try again');
-                }
-                throw new Error(`Upload failed: ${error.message}`);
-            }
-        }
-
-        // Handle file selection with retries
-        pdfInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                if (file.type !== 'application/pdf') {
-                    alert('Please upload PDF files only');
-                    return;
-                }
-
-                // Update size limit to match 0x0.st's limit (512 MiB)
-                if (file.size > 512 * 1024 * 1024) {
-                    alert('File size must be less than 512 MB');
-                    return;
-                }
-
-                let retries = 3;
-                while (retries > 0) {
-                    try {
-                        // Show loading state
-                        preview.classList.remove('hidden');
-                        filename.textContent = 'Uploading... (Attempt ' + (4 - retries) + ' of 3)';
-
-                        // Upload file
-                        const downloadUrl = await uploadFile(file);
-                        
-                        // Update UI on success
-                        preview.classList.remove('hidden');
-                        filename.textContent = file.name;
-                        pdfUrlInput.value = downloadUrl;
-                        return; // Success, exit the retry loop
-                    } catch (error) {
-                        console.error(`Upload attempt ${4 - retries} failed:`, error);
-                        retries--;
-                        
-                        if (retries === 0) {
-                            alert('Failed to upload file after multiple attempts. Error: ' + error.message);
-                            preview.classList.add('hidden');
-                            filename.textContent = '';
-                            pdfUrlInput.value = '';
-                        } else {
-                            // Wait before retrying
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
-                    }
-                }
-            }
-        });
-
-        // Handle remove button
-        removeButton.addEventListener('click', () => {
-            pdfInput.value = '';
-            preview.classList.add('hidden');
-            filename.textContent = '';
-            pdfUrlInput.value = '';
-        });
     }
 }
 
