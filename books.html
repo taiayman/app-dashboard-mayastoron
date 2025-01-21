@@ -187,149 +187,144 @@
 
             <!-- Modal Body -->
             <div class="p-4 lg:p-6 overflow-y-auto" style="max-height: calc(90vh - 80px);">
-                <form id="book-form" class="space-y-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- Left Column - Basic Info -->
-                        <div class="space-y-4">
-                            <h4 class="font-semibold text-gray-800 text-lg border-b pb-2">Basic Information</h4>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                                <input type="text" id="book-title" name="title" required
-                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Author</label>
-                                <input type="text" id="book-author" name="author" required
-                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea id="book-description" name="description" rows="4" required
-                                          class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 resize-none"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
-                                <input type="text" id="book-publisher" name="publisher" required
-                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                            </div>
+                <form id="book-form" class="space-y-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Book Title</label>
+                            <input type="text" id="book-title" name="title" required
+                                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                                   placeholder="Enter book title...">
                         </div>
 
-                        <!-- Middle Column - Details -->
-                        <div class="space-y-4">
-                            <h4 class="font-semibold text-gray-800 text-lg border-b pb-2">Book Details</h4>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Release Date</label>
-                                <input type="date" id="book-release-date" name="releaseDate" required
-                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Page Count</label>
-                                <input type="number" id="book-page-count" name="pageCount" required min="1"
-                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-                                <div class="flex items-center space-x-2">
-                                    <input type="number" id="book-rating" name="rating" required min="0" max="5" step="0.1"
-                                           class="w-24 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                                    <div class="text-yellow-400 text-xl">
-                                        <i class="fas fa-star"></i>
-                                        <i class="fas fa-star"></i>
-                                        <i class="fas fa-star"></i>
-                                        <i class="fas fa-star"></i>
-                                        <i class="fas fa-star"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Genres</label>
-                                <div class="relative">
-                                    <select id="book-genres" name="genres" multiple required
-                                            class="hidden">
-                                    </select>
-                                    <div class="w-full px-4 py-2 border rounded-lg focus-within:ring-2 focus-within:ring-orange-500 bg-gray-50">
-                                        <div id="selected-genres" class="flex flex-wrap gap-2 min-h-[42px]">
-                                            <!-- Selected genres will appear here as tags -->
-                                        </div>
-                                        <input type="text" id="genre-search" 
-                                               placeholder="Search and select genres..."
-                                               class="w-full mt-2 bg-transparent border-none p-0 focus:ring-0 text-sm">
-                                    </div>
-                                    <div id="genre-dropdown" class="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg hidden">
-                                        <div id="genre-options" class="max-h-48 overflow-y-auto p-1">
-                                            <!-- Genre options will appear here -->
-                                        </div>
-                                    </div>
-                                </div>
-                                <p class="mt-1 text-xs text-gray-500">Click to select multiple genres</p>
-                            </div>
-                            <div class="flex items-center space-x-6 pt-4">
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="checkbox" id="book-premium" name="isPremium" 
-                                           class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500">
-                                    <span class="text-sm text-gray-700">Premium Book</span>
-                                </label>
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="checkbox" id="book-featured" name="featured"
-                                           class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500">
-                                    <span class="text-sm text-gray-700">Featured</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Right Column - Media -->
-                        <div class="space-y-4">
-                            <h4 class="font-semibold text-gray-800 text-lg border-b pb-2">Media Files</h4>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
-                                <input type="url" id="book-image-url" name="imageUrl" required
-                                       placeholder="https://example.com/book-cover.jpg"
-                                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
-                                <p class="mt-1 text-xs text-gray-500">Enter a valid image URL (jpg, png, etc.)</p>
-                                <div class="mt-2">
-                                    <img id="image-preview" src="" alt="" class="hidden mx-auto max-h-48 rounded-lg">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">PDF Book</label>
-                                <div class="w-full">
-                                    <!-- File input for Gofile -->
-                                    <input 
-                                        type="file" 
-                                        id="book-pdf-upload" 
-                                        name="pdfFile"
-                                        accept=".pdf"
-                                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
-                                    />
-                                    <input 
-                                        type="hidden" 
-                                        name="pdfUrl"
-                                    />
-                                    
-                                    <!-- Preview area for uploaded file -->
-                                    <div id="pdf-preview" class="mt-2 hidden">
-                                        <div class="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                                            <i class="fas fa-file-pdf text-orange-500 text-xl"></i>
-                                            <span class="text-sm text-gray-700 flex-1" id="pdf-filename"></span>
-                                            <button type="button" id="remove-pdf" class="text-red-500 hover:text-red-700 transition-colors">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p class="mt-1 text-xs text-gray-500">Maximum file size: 100MB</p>
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Author</label>
+                            <input type="text" id="book-author" name="author" required
+                                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                                   placeholder="Enter author name...">
                         </div>
                     </div>
 
-                    <!-- Form Actions -->
-                    <div class="flex justify-end space-x-3 pt-6 border-t">
-                        <button type="button" id="cancel-modal" 
-                                class="px-6 py-2.5 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="book-description" name="description" rows="4" required
+                                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50 resize-none"
+                                placeholder="Enter book description..."></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                            <select id="book-language" name="language" required
+                                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                                <option value="">Select language</option>
+                                <option value="en">English</option>
+                                <option value="fr">French</option>
+                                <option value="ar">Arabic</option>
+                                <option value="es">Spanish</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
+                            <input type="text" id="book-publisher" name="publisher" required
+                                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                                   placeholder="Enter publisher...">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Release Date</label>
+                            <input type="date" id="book-release-date" name="releaseDate" required
+                                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Page Count</label>
+                            <input type="number" id="book-pages" name="pages" min="1"
+                                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                                   placeholder="Number of pages">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                            <input type="number" id="book-rating" name="rating" min="0" max="5" step="0.1"
+                                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                                   placeholder="Rating (0-5)">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Premium Access</label>
+                            <select id="book-premium" name="isPremium" required
+                                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50">
+                                <option value="false">Free</option>
+                                <option value="true">Premium</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Genres</label>
+                        <div class="relative">
+                            <div class="flex flex-wrap gap-2 p-2 border rounded-lg bg-gray-50 min-h-[42px]" id="selected-genres">
+                                <!-- Selected genres will be inserted here -->
+                            </div>
+                            <input type="text" id="genre-search" 
+                                   class="w-full px-4 py-2 mt-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
+                                   placeholder="Search and select genres...">
+                            <div id="genre-dropdown" class="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg hidden">
+                                <div id="genre-options" class="max-h-48 overflow-y-auto">
+                                    <!-- Genre options will be inserted here -->
+                                </div>
+                            </div>
+                            <select id="book-genres" name="genres" multiple class="hidden">
+                                <!-- Hidden select for form submission -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Book Cover</label>
+                            <div id="image-preview-container" class="border-2 border-dashed rounded-lg p-4 text-center">
+                                <div id="image-upload-prompt">
+                                    <i class="fas fa-cloud-upload-alt text-4xl text-orange-400 mb-2"></i>
+                                    <p class="text-sm text-gray-600">Drag and drop an image here, or</p>
+                                    <button type="button" onclick="document.getElementById('book-cover-upload').click()" 
+                                            class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                        Choose Image
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="file" id="book-cover-upload" accept="image/*" class="hidden">
+                            <input type="hidden" id="book-cover-url" name="coverUrl">
+                            <input type="hidden" id="book-image-url" name="imageUrl">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">PDF File</label>
+                            <div id="pdf-preview-container" class="border-2 border-dashed rounded-lg p-4 text-center">
+                                <div id="pdf-upload-prompt">
+                                    <i class="fas fa-file-pdf text-4xl text-orange-400 mb-2"></i>
+                                    <p class="text-sm text-gray-600">Drag and drop a PDF here, or</p>
+                                    <button type="button" onclick="document.getElementById('book-pdf-upload').click()" 
+                                            class="mt-2 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors">
+                                        Choose PDF
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="file" id="book-pdf-upload" accept="application/pdf" class="hidden">
+                            <input type="hidden" id="book-pdf-url" name="pdfUrl">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t">
+                        <button type="button" id="close-modal"
+                                class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" 
-                                class="px-6 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                        <button type="submit"
+                                class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
                             Save Book
                         </button>
                     </div>
