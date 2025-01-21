@@ -373,13 +373,11 @@ class BooksManager {
             if (book.pdfUrl) {
                 const preview = document.getElementById('pdf-preview');
                 const filename = document.getElementById('pdf-filename');
+                const pdfUrlInput = document.querySelector('input[name="pdfUrl"]');
                 
                 preview.classList.remove('hidden');
                 filename.textContent = 'Current PDF file';
-                
-                // Update Uploadcare widget with existing PDF
-                const widget = uploadcare.Widget('[role=uploadcare-uploader]');
-                widget.value(book.pdfUrl);
+                pdfUrlInput.value = book.pdfUrl;
             }
 
             // Update selected genres
@@ -600,40 +598,108 @@ class BooksManager {
     }
 
     setupUploadcare() {
-        // Initialize widget
-        const widget = uploadcare.Widget('[role=uploadcare-uploader]');
+        const pdfInput = document.getElementById('book-pdf-upload');
+        const preview = document.getElementById('pdf-preview');
+        const filename = document.getElementById('pdf-filename');
+        const removeButton = document.getElementById('remove-pdf');
+        const pdfUrlInput = document.querySelector('input[name="pdfUrl"]');
         
-        // Configure widget settings
-        widget.validators.push(function(fileInfo) {
-            if (fileInfo.name && !fileInfo.name.toLowerCase().endsWith('.pdf')) {
-                throw new Error('Please upload PDF files only');
-            }
-        });
-        
-        // Handle successful uploads
-        widget.onChange(function(file) {
-            if (file) {
-                file.done(function(fileInfo) {
-                    const pdfUrl = fileInfo.cdnUrl;
-                    const preview = document.getElementById('pdf-preview');
-                    const filename = document.getElementById('pdf-filename');
-                    
-                    // Update UI
-                    preview.classList.remove('hidden');
-                    filename.textContent = fileInfo.name || 'Uploaded PDF';
-                    
-                    // Store the URL
-                    document.querySelector('input[name="pdfUrl"]').value = pdfUrl;
+        // Upload file to 0x0.st
+        async function uploadFile(file) {
+            try {
+                console.log('Starting file upload...');
+                const formData = new FormData();
+                formData.append('file', file);
+                // Add secret flag for harder-to-guess URLs
+                formData.append('secret', '');
+                // Set expiration to 180 days (in hours)
+                formData.append('expires', 180 * 24);
+                
+                const response = await fetch('https://0x0.st', {
+                    method: 'POST',
+                    body: formData
                 });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Upload response error:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                console.log('Upload response status:', response.status);
+                const downloadUrl = await response.text();
+                console.log('Download URL:', downloadUrl);
+                
+                if (!downloadUrl || !downloadUrl.startsWith('http')) {
+                    throw new Error('Invalid response from server');
+                }
+                
+                // Append original filename to the URL
+                const safeFileName = encodeURIComponent(file.name);
+                return `${downloadUrl.trim()}/${safeFileName}`;
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                    throw new Error('Network error - please check your internet connection and try again');
+                }
+                throw new Error(`Upload failed: ${error.message}`);
+            }
+        }
+
+        // Handle file selection with retries
+        pdfInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type !== 'application/pdf') {
+                    alert('Please upload PDF files only');
+                    return;
+                }
+
+                // Update size limit to match 0x0.st's limit (512 MiB)
+                if (file.size > 512 * 1024 * 1024) {
+                    alert('File size must be less than 512 MB');
+                    return;
+                }
+
+                let retries = 3;
+                while (retries > 0) {
+                    try {
+                        // Show loading state
+                        preview.classList.remove('hidden');
+                        filename.textContent = 'Uploading... (Attempt ' + (4 - retries) + ' of 3)';
+
+                        // Upload file
+                        const downloadUrl = await uploadFile(file);
+                        
+                        // Update UI on success
+                        preview.classList.remove('hidden');
+                        filename.textContent = file.name;
+                        pdfUrlInput.value = downloadUrl;
+                        return; // Success, exit the retry loop
+                    } catch (error) {
+                        console.error(`Upload attempt ${4 - retries} failed:`, error);
+                        retries--;
+                        
+                        if (retries === 0) {
+                            alert('Failed to upload file after multiple attempts. Error: ' + error.message);
+                            preview.classList.add('hidden');
+                            filename.textContent = '';
+                            pdfUrlInput.value = '';
+                        } else {
+                            // Wait before retrying
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        }
+                    }
+                }
             }
         });
-        
-        // Handle removal
-        document.getElementById('remove-pdf').addEventListener('click', () => {
-            widget.value(null);
-            document.getElementById('pdf-preview').classList.add('hidden');
-            document.getElementById('pdf-filename').textContent = '';
-            document.querySelector('input[name="pdfUrl"]').value = '';
+
+        // Handle remove button
+        removeButton.addEventListener('click', () => {
+            pdfInput.value = '';
+            preview.classList.add('hidden');
+            filename.textContent = '';
+            pdfUrlInput.value = '';
         });
     }
 }
