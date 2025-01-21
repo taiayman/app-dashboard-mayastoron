@@ -79,6 +79,66 @@
             <!-- Version Timeline -->
             <div class="bg-white rounded-xl shadow-sm p-6">
                 <div class="space-y-8">
+                    <!-- Version 1.1.0 -->
+                    <div class="relative">
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center">
+                                <div class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">v1.1.0</div>
+                                <span class="ml-3 text-sm text-gray-500">January 21, 2025</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-4 sm:p-6 rounded-lg border border-gray-100 mb-8">
+                            <h3 class="text-lg lg:text-xl font-semibold mb-4 text-gray-800">Major UI Enhancements</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mb-4">
+                                <div class="space-y-4">
+                                    <div class="bg-white rounded-lg p-3 sm:p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                                        <h4 class="font-medium text-gray-800 mb-2 sm:mb-3">Home Screen Redesign</h4>
+                                        <div class="relative aspect-[4/5] min-h-[300px] sm:min-h-[400px] overflow-hidden rounded-lg mb-2 sm:mb-3">
+                                            <img src="home.png" 
+                                                 alt="Home Screen Screenshot" 
+                                                 class="w-full h-full object-contain hover:scale-105 transition-transform duration-300 cursor-zoom-in">
+                                            <div class="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
+                                        </div>
+                                        <p class="text-xs sm:text-sm text-gray-600">Enhanced book recommendations and improved category navigation</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="bg-white rounded-lg p-3 sm:p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                                        <h4 class="font-medium text-gray-800 mb-2 sm:mb-3">Profile Screen Update</h4>
+                                        <div class="relative aspect-[4/5] min-h-[300px] sm:min-h-[400px] overflow-hidden rounded-lg mb-2 sm:mb-3">
+                                            <img src="profile.png" 
+                                                 alt="Profile Screen Screenshot" 
+                                                 class="w-full h-full object-contain hover:scale-105 transition-transform duration-300 cursor-zoom-in">
+                                            <div class="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
+                                        </div>
+                                        <p class="text-xs sm:text-sm text-gray-600">New user statistics and reading progress visualization</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GitHub System Architecture -->
+                            <div class="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
+                                <h4 class="font-medium text-gray-800 mb-3 sm:mb-4">📊 System Architecture</h4>
+                                <div class="bg-white rounded-lg p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div class="relative aspect-[16/9] min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[500px] overflow-hidden rounded-lg">
+                                        <img src="github_mindmap_system.png" 
+                                             alt="GitHub System Architecture" 
+                                             class="w-full h-full object-contain hover:scale-105 transition-transform duration-300 cursor-zoom-in">
+                                        <div class="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4">Comprehensive overview of the system's GitHub integration and file management architecture</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 pt-4 border-t border-gray-200">
+                                <p class="text-gray-700">✅ Updated Profile screen with new features</p>
+                                <p class="text-gray-700">✅ Enhanced visual hierarchy and typography</p>
+                                <p class="text-gray-700">✅ Improved navigation and user flow</p>
+                                <p class="text-gray-700">✅ Added reading progress visualization</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Version 1.0.0 -->
                     <div class="relative">
                         <div class="flex items-center mb-4">
@@ -222,6 +282,80 @@
         </main>
     </div>
 
+    <!-- Fullscreen Modal -->
+    <div id="fullscreen-modal" class="fixed inset-0 bg-black bg-opacity-90 hidden z-50 p-4">
+        <button class="absolute top-4 right-4 text-white hover:text-gray-300 text-xl p-2 z-20" onclick="closeFullscreen()">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <!-- Zoom controls -->
+        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-4 z-20">
+            <button onclick="zoomImage(-0.2)" class="text-white hover:text-gray-300 bg-black/50 rounded-full p-2">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <button onclick="resetZoom()" class="text-white hover:text-gray-300 bg-black/50 rounded-full p-2">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button onclick="zoomImage(0.2)" class="text-white hover:text-gray-300 bg-black/50 rounded-full p-2">
+                <i class="fas fa-search-plus"></i>
+            </button>
+        </div>
+
+        <div class="w-full h-full flex items-center justify-center" onclick="closeFullscreen()">
+            <div class="max-w-[95vw] max-h-[85vh] overflow-auto" onclick="event.stopPropagation()">
+                <img id="fullscreen-image" 
+                     class="transform-gpu transition-transform duration-200" 
+                     src="" 
+                     alt="Fullscreen view"
+                     style="transform: scale(1)">
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @media (max-width: 640px) {
+            #fullscreen-image {
+                max-width: 95vw;
+            }
+        }
+        
+        /* Add smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Improve touch interactions */
+        @media (hover: none) {
+            .hover\:scale-105:hover {
+                transform: none;
+            }
+            
+            .hover\:opacity-10:hover {
+                opacity: 0;
+            }
+        }
+
+        /* Custom scrollbar for image container */
+        .overflow-auto::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .overflow-auto::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        .overflow-auto::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        .overflow-auto::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+
     <script>
         // Mobile menu functionality
         const sidebar = document.getElementById('sidebar');
@@ -251,6 +385,93 @@
                 !mobileMenuButton.contains(e.target) && 
                 !mobileCloseButton.contains(e.target)) {
                 closeSidebar();
+            }
+        });
+
+        // Add click handlers to all images
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers to all images in the changelog
+            const images = document.querySelectorAll('.aspect-\\[4\\/5\\] img, .aspect-\\[16\\/9\\] img');
+            images.forEach(img => {
+                img.addEventListener('click', function() {
+                    openFullscreen(this.src);
+                });
+            });
+        });
+
+        // Fullscreen functionality with zoom
+        let currentZoom = 1;
+        const MIN_ZOOM = 0.5;
+        const MAX_ZOOM = 3;
+
+        function openFullscreen(imageSrc) {
+            const modal = document.getElementById('fullscreen-modal');
+            const image = document.getElementById('fullscreen-image');
+            image.src = imageSrc;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            resetZoom();
+        }
+
+        function closeFullscreen() {
+            const modal = document.getElementById('fullscreen-modal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+            resetZoom();
+        }
+
+        function zoomImage(delta) {
+            const newZoom = Math.min(Math.max(currentZoom + delta, MIN_ZOOM), MAX_ZOOM);
+            if (newZoom !== currentZoom) {
+                currentZoom = newZoom;
+                const image = document.getElementById('fullscreen-image');
+                image.style.transform = `scale(${currentZoom})`;
+            }
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            const image = document.getElementById('fullscreen-image');
+            image.style.transform = 'scale(1)';
+        }
+
+        // Close on escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeFullscreen();
+            }
+        });
+
+        // Add zoom with mouse wheel
+        document.getElementById('fullscreen-image').addEventListener('wheel', function(event) {
+            event.preventDefault();
+            const delta = event.deltaY > 0 ? -0.1 : 0.1;
+            zoomImage(delta);
+        });
+
+        // Add touch zoom support
+        let touchStartDistance = 0;
+        const imageContainer = document.querySelector('.overflow-auto');
+
+        imageContainer.addEventListener('touchstart', function(event) {
+            if (event.touches.length === 2) {
+                touchStartDistance = Math.hypot(
+                    event.touches[0].pageX - event.touches[1].pageX,
+                    event.touches[0].pageY - event.touches[1].pageY
+                );
+            }
+        });
+
+        imageContainer.addEventListener('touchmove', function(event) {
+            if (event.touches.length === 2) {
+                event.preventDefault();
+                const currentDistance = Math.hypot(
+                    event.touches[0].pageX - event.touches[1].pageX,
+                    event.touches[0].pageY - event.touches[1].pageY
+                );
+                const delta = (currentDistance - touchStartDistance) * 0.01;
+                touchStartDistance = currentDistance;
+                zoomImage(delta);
             }
         });
     </script>
