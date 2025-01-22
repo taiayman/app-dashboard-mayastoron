@@ -10,7 +10,7 @@ class GenresManager {
         this.booksRef = collection(db, 'books');
         
         // GitHub configuration
-        this.GITHUB_TOKEN = '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';
+        this.GITHUB_TOKEN = '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';
         this.REPO_OWNER = 'taiayman';
         this.REPO_NAME = 'pdf-storage';
         this.BRANCH = 'main';
