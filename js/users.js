@@ -10,7 +10,7 @@ class UsersManager {
         this.readingStatesRef = collection(db, 'reading_states');
         
         // GitHub configuration
-        this.GITHUB_TOKEN = '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';
+        this.GITHUB_TOKEN = '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';
         this.REPO_OWNER = 'taiayman';
         this.REPO_NAME = 'pdf-storage';
         this.BRANCH = 'main';
